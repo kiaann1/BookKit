@@ -12,6 +12,7 @@ import { BookStatus } from "@/lib/constants/book-status";
 import { buildGenreFilterOptions } from "@/lib/constants/genres";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { getBookIdLookupCandidates } from "@/lib/books/paths";
 import { resolveBookListCoverUrl } from "@/lib/covers/book-cover-url";
 
 export type { BookListItem, CatalogFilters } from "@/lib/books/types";
@@ -132,21 +133,30 @@ export async function getPublishedBooks(filters: CatalogFilters = {}) {
 }
 
 export async function getPublishedBookById(id: string) {
-  if (canQueryDatabase()) {
-    try {
-      const book = await prisma.book.findFirst({
-        where: { id, status: BookStatus.PUBLISHED },
-      });
+  const candidates = getBookIdLookupCandidates(id);
 
-      if (book) {
-        return await toBookListItem(book);
+  for (const candidate of candidates) {
+    if (canQueryDatabase()) {
+      try {
+        const book = await prisma.book.findFirst({
+          where: { id: candidate, status: BookStatus.PUBLISHED },
+        });
+
+        if (book) {
+          return await toBookListItem(book);
+        }
+      } catch (error) {
+        console.error("[catalog] Failed to load book by id:", candidate, error);
       }
-    } catch (error) {
-      console.error("[catalog] Failed to load book by id:", id, error);
+    }
+
+    const fromStorage = await getPublishedStorageBookById(candidate);
+    if (fromStorage) {
+      return fromStorage;
     }
   }
 
-  return getPublishedStorageBookById(id);
+  return null;
 }
 
 export async function getAllBooksForAdmin() {

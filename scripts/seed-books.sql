@@ -178,7 +178,7 @@ INSERT INTO "Book" (
   "publishedAt", "seriesTitle", "seriesIndex", "status", "uploadedById",
   "createdAt", "updatedAt"
 ) VALUES (
-  'the-ascended--grenwich-&-lennox',
+  'the-ascended--grenwich-and-lennox',
   'The Ascended',
   'Grenwich & Lennox',
   NULL,

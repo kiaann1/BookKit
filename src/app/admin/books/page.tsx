@@ -10,6 +10,7 @@ import { FadeIn } from "@/components/motion/fade-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAllBooksForAdmin } from "@/lib/books";
+import { catalogBookPath } from "@/lib/books/paths";
 import { Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -97,7 +98,7 @@ export default async function AdminBooksPage() {
 
               <div className="flex flex-wrap gap-2">
                 {book.status === BookStatus.PUBLISHED && (
-                  <Link href={`/catalog/${book.id}`}>
+                  <Link href={catalogBookPath(book.id)}>
                     <Button variant="outline" size="sm">
                       View
                     </Button>

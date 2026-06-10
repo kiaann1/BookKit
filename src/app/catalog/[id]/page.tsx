@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, BookOpen, Calendar } from "lucide-react";
 import { FadeIn } from "@/components/motion/fade-in";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { ReadBookButton } from "@/components/books/read-book-button";
 import { ShelfActions } from "@/components/shelf/shelf-actions";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { getPublishedBookById } from "@/lib/books";
+import { catalogBookPath, resolveBookId } from "@/lib/books/paths";
 import { getReadingProgress } from "@/lib/progress";
 import { getShelfEntry } from "@/lib/shelf";
 
@@ -38,6 +39,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   if (!book) {
     notFound();
+  }
+
+  const canonicalBookId = resolveBookId(book.id);
+  if (resolveBookId(id) !== canonicalBookId || id !== canonicalBookId) {
+    redirect(catalogBookPath(canonicalBookId));
   }
 
   const user = await getAuthenticatedUser();
@@ -146,6 +152,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 bookId={book.id}
                 bookTitle={book.title}
                 initialStatus={shelfEntry?.status ?? null}
+                initialRating={shelfEntry?.rating ?? null}
               />
             ) : (
               <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/5 p-5">

@@ -89,6 +89,7 @@ model UserBook {
   totalPages      Int?
   progressPercent Float?
   lastReadAt      DateTime?
+  showcaseOrder   Int?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -98,6 +99,7 @@ model UserBook {
   @@unique([userId, bookId])
   @@index([userId])
   @@index([userId, status])
+  @@index([userId, showcaseOrder])
 }
 
 model Account {

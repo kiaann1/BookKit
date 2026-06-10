@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { PdfReader } from "@/components/reader/pdf-reader";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { getPublishedBookById } from "@/lib/books";
+import { readBookPath, resolveBookId } from "@/lib/books/paths";
 import { getReadingProgress } from "@/lib/progress";
 
 type ReadPageProps = {
@@ -33,12 +34,17 @@ export default async function ReadPage({ params }: ReadPageProps) {
     notFound();
   }
 
-  const progress = await getReadingProgress(user.userId, bookId);
+  const canonicalBookId = resolveBookId(book.id);
+  if (resolveBookId(bookId) !== canonicalBookId || bookId !== canonicalBookId) {
+    redirect(readBookPath(canonicalBookId));
+  }
+
+  const progress = await getReadingProgress(user.userId, canonicalBookId);
   const initialPage = progress?.currentPage ?? 1;
 
   return (
     <PdfReader
-      bookId={book.id}
+      bookId={canonicalBookId}
       title={book.title}
       author={book.author}
       initialPage={initialPage}

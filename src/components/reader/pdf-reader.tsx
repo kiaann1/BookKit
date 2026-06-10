@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { catalogBookPath } from "@/lib/books/paths";
 import { cn } from "@/lib/utils";
 
 type PdfReaderProps = {
@@ -33,6 +34,22 @@ const SAVE_DEBOUNCE_MS = 2000;
 const FOCUS_CHROME_HIDE_MS = 2500;
 const PAGE_CACHE_LIMIT = 8;
 const MAX_OUTPUT_SCALE = 2.5;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2.5;
+
+function clampZoom(value: number) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
+
+function getTouchDistance(touches: TouchList | React.TouchList) {
+  if (touches.length < 2) {
+    return 0;
+  }
+
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
 
 function getOutputScale() {
   if (typeof window === "undefined") {
@@ -101,7 +118,13 @@ export function PdfReader({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const readingAreaRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const pinchRef = useRef<{ initialDistance: number; initialScale: number } | null>(
+    null,
+  );
+  const isPinchingRef = useRef(false);
+  const renderScaleRef = useRef(1.35);
   const pdfRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pageBitmapCacheRef = useRef<Map<string, ImageBitmap>>(new Map());
@@ -118,6 +141,7 @@ export function PdfReader({
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.35);
   const [manualScale, setManualScale] = useState<number | null>(null);
+  const [displayScale, setDisplayScale] = useState(1.35);
   const [containerWidth, setContainerWidth] = useState(0);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [isLoading, setIsLoading] = useState(true);
@@ -220,6 +244,20 @@ export function PdfReader({
   }
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 2) {
+      isPinchingRef.current = true;
+      touchRef.current = null;
+      pinchRef.current = {
+        initialDistance: getTouchDistance(event.touches),
+        initialScale: renderScaleRef.current,
+      };
+      return;
+    }
+
+    if (isPinchingRef.current) {
+      return;
+    }
+
     const touch = event.touches[0];
     touchRef.current = {
       x: touch.clientX,
@@ -229,6 +267,18 @@ export function PdfReader({
   }
 
   function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length >= 2) {
+      return;
+    }
+
+    if (isPinchingRef.current) {
+      if (event.touches.length === 0) {
+        isPinchingRef.current = false;
+        pinchRef.current = null;
+      }
+      return;
+    }
+
     if (!touchRef.current || isLoading || error) {
       return;
     }
@@ -258,8 +308,8 @@ export function PdfReader({
 
   function adjustZoom(delta: number) {
     setManualScale((current) => {
-      const base = current ?? scale;
-      return Math.min(2.5, Math.max(0.5, base + delta));
+      const base = current ?? renderScaleRef.current;
+      return clampZoom(base + delta);
     });
   }
 
@@ -376,6 +426,33 @@ export function PdfReader({
   }, [isMobile]);
 
   useEffect(() => {
+    const element = readingAreaRef.current;
+    if (!element || !isMobile) {
+      return;
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      if (event.touches.length !== 2 || !pinchRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const distance = getTouchDistance(event.touches);
+      if (distance <= 0 || pinchRef.current.initialDistance <= 0) {
+        return;
+      }
+
+      const ratio = distance / pinchRef.current.initialDistance;
+      const nextScale = clampZoom(pinchRef.current.initialScale * ratio);
+      setManualScale(nextScale);
+    }
+
+    element.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => element.removeEventListener("touchmove", onTouchMove);
+  }, [isMobile, isLoading, error]);
+
+  useEffect(() => {
     const element = scrollContainerRef.current;
     if (!element || isLoading) {
       return;
@@ -436,11 +513,11 @@ export function PdfReader({
       let renderScale = manualScale ?? scale;
       if (isMobile && manualScale === null && containerWidth > 0) {
         const baseViewport = page.getViewport({ scale: 1 });
-        renderScale = Math.min(
-          2.5,
-          Math.max(0.5, (containerWidth - 16) / baseViewport.width),
-        );
+        renderScale = clampZoom((containerWidth - 16) / baseViewport.width);
       }
+
+      renderScaleRef.current = renderScale;
+      setDisplayScale(renderScale);
 
       const outputScale = getOutputScale();
       const layout = getPageRenderLayout(page, renderScale, outputScale);
@@ -648,7 +725,7 @@ export function PdfReader({
           darkMode ? "border-zinc-800 bg-zinc-950/95" : "border-zinc-200 bg-white/95",
         )}
       >
-        <Link href={`/catalog/${bookId}`}>
+        <Link href={catalogBookPath(bookId)}>
           <Button
             variant="ghost"
             size="icon"
@@ -696,7 +773,7 @@ export function PdfReader({
             className="w-12 text-center text-xs tabular-nums text-muted-foreground"
             title="Reset zoom"
           >
-            {Math.round((manualScale ?? scale) * 100)}%
+            {Math.round(displayScale * 100)}%
           </button>
           <Button
             variant="ghost"
@@ -750,6 +827,32 @@ export function PdfReader({
             variant="ghost"
             size="icon"
             className="h-9 w-9 touch-manipulation"
+            onClick={() => adjustZoom(-0.15)}
+            aria-label="Zoom out"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <button
+            type="button"
+            onClick={resetZoomFit}
+            className="w-10 text-center text-[10px] tabular-nums text-muted-foreground"
+            title="Reset zoom"
+          >
+            {Math.round(displayScale * 100)}%
+          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 touch-manipulation"
+            onClick={() => adjustZoom(0.15)}
+            aria-label="Zoom in"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 touch-manipulation"
             onClick={() => setLightsOff(true)}
             aria-label="Lights off"
           >
@@ -783,13 +886,20 @@ export function PdfReader({
         ) : error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
             <p className="text-sm">{error}</p>
-            <Link href={`/catalog/${bookId}`}>
+            <Link href={catalogBookPath(bookId)}>
               <Button variant="outline">Back to book</Button>
             </Link>
           </div>
         ) : (
-          <div ref={scrollContainerRef} className="flex-1 overflow-auto touch-pan-y">
+          <div
+            ref={scrollContainerRef}
+            className={cn(
+              "flex-1 overflow-auto",
+              isMobile ? "touch-pan-x touch-pan-y" : "touch-pan-y",
+            )}
+          >
             <div
+              ref={readingAreaRef}
               className={cn(
                 "flex min-h-full items-center justify-center",
                 lightsOff ? "cursor-default p-0" : "p-2 sm:p-8",

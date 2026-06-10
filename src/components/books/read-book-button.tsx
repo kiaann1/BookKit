@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { readBookPath } from "@/lib/books/paths";
 import { cn } from "@/lib/utils";
 
 type ReadBookButtonProps = {
@@ -24,7 +25,7 @@ export function ReadBookButton({
 
   return (
     <Link
-      href={`/read/${encodeURIComponent(bookId)}`}
+      href={readBookPath(bookId)}
       className={widthClass || undefined}
     >
       <Button

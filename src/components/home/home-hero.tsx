@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { BookMarked, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { catalogBookPath } from "@/lib/books/paths";
 import type { FeaturedCover } from "@/lib/home/featured-covers";
 import { ease, staggerContainer, staggerItem } from "@/lib/motion";
 
@@ -100,7 +101,7 @@ function CoverFloatingCard({
       }}
     >
       <Link
-        href={`/catalog/${cover.id}`}
+        href={catalogBookPath(cover.id)}
         className="group relative block h-48 w-36 overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg shadow-primary/10 card-glow transition-shadow duration-300 hover:shadow-xl hover:shadow-primary/20"
       >
         <Image
@@ -226,7 +227,7 @@ export function HomeHero({
               {floatingCovers.slice(0, 3).map((cover) => (
                 <Link
                   key={cover.id}
-                  href={`/catalog/${cover.id}`}
+                  href={catalogBookPath(cover.id)}
                   className="relative h-40 w-28 overflow-hidden rounded-lg border border-border/80"
                 >
                   <Image

@@ -17,12 +17,14 @@ export async function enrichShelfEntries(
       shelfEntryId: entry.id,
       shelfStatus: entry.status,
       rating: entry.rating,
+      review: entry.review,
       startedAt: entry.startedAt,
       finishedAt: entry.finishedAt,
       currentPage: entry.currentPage,
       totalPages: entry.totalPages,
       progressPercent: entry.progressPercent,
       lastReadAt: entry.lastReadAt,
+      showcaseOrder: entry.showcaseOrder,
       addedAt: entry.createdAt,
     });
   }

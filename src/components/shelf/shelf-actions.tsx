@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import { StarRating } from "@/components/shelf/star-rating";
 import { Button } from "@/components/ui/button";
+import { readBookPath } from "@/lib/books/paths";
 import {
   SHELF_STATUS_LABELS,
   SHELF_STATUS_OPTIONS,
@@ -16,15 +18,18 @@ type ShelfActionsProps = {
   bookId: string;
   bookTitle: string;
   initialStatus: ShelfStatus | null;
+  initialRating?: number | null;
 };
 
 export function ShelfActions({
   bookId,
   bookTitle,
   initialStatus,
+  initialRating = null,
 }: ShelfActionsProps) {
   const router = useRouter();
   const [status, setStatus] = useState<ShelfStatus | null>(initialStatus);
+  const [rating, setRating] = useState<number | null>(initialRating);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,30 +60,54 @@ export function ShelfActions({
     }
   }
 
-  async function updateStatus(nextStatus: ShelfStatus) {
+  async function patchShelf(body: Record<string, unknown>) {
     setError(null);
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/shelf/${bookId}`, {
+      const response = await fetch(`/api/shelf/${encodeURIComponent(bookId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Could not update status");
-        return;
+        setError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not update shelf entry",
+        );
+        return false;
       }
 
-      setStatus(data.entry.status);
+      if (data.entry?.status) {
+        setStatus(data.entry.status);
+      }
+      if (data.entry?.rating !== undefined) {
+        setRating(data.entry.rating);
+      }
       router.refresh();
+      return true;
     } catch {
       setError("Something went wrong");
+      return false;
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function updateStatus(nextStatus: ShelfStatus) {
+    await patchShelf({ status: nextStatus });
+  }
+
+  async function updateRating(nextRating: number | null) {
+    const previous = rating;
+    setRating(nextRating);
+    const ok = await patchShelf({ rating: nextRating });
+    if (!ok) {
+      setRating(previous);
     }
   }
 
@@ -87,7 +116,7 @@ export function ShelfActions({
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/shelf/${bookId}`, {
+      const response = await fetch(`/api/shelf/${encodeURIComponent(bookId)}`, {
         method: "DELETE",
       });
 
@@ -163,12 +192,21 @@ export function ShelfActions({
         </Link>
       </div>
 
-      <Link href={`/read/${bookId}`} className="mt-4 inline-block">
+      <Link href={readBookPath(bookId)} className="mt-4 inline-block">
         <Button size="sm">
           <Bookmark className="h-4 w-4" />
           Read book
         </Button>
       </Link>
+
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Rating</p>
+        <StarRating
+          value={rating}
+          onChange={(value) => void updateRating(value)}
+          disabled={isLoading}
+        />
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {SHELF_STATUS_OPTIONS.map((option) => (

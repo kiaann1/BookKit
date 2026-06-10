@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { BookListItem } from "@/lib/books";
+import { catalogBookPath } from "@/lib/books/paths";
 import { BookCoverImage } from "@/components/books/book-cover-image";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,7 +11,7 @@ type BookCardProps = {
 export function BookCard({ book }: BookCardProps) {
   return (
     <Link
-      href={`/catalog/${book.id}`}
+      href={catalogBookPath(book.id)}
       className="group flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card card-glow transition-transform duration-300 active:scale-[0.98] sm:rounded-2xl sm:hover-lift"
     >
       <div className="relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-primary/15 to-brand-coral/15">

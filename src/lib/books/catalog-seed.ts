@@ -1,6 +1,9 @@
 import { BookStatus, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { THE_ASCENDED_BOOK_ID } from "@/lib/books/paths";
 import { bookCoverKey, bookPdfKey } from "@/lib/storage/keys";
+
+const THE_ASCENDED_STORAGE_PREFIX = "books/the-ascended--grenwich-&-lennox";
 
 const SYSTEM_UPLOADER_ID = "bookkit-system-uploader";
 
@@ -10,6 +13,7 @@ type CatalogSeedBook = {
   author: string;
   description: string | null;
   coverKey: string | null;
+  pdfKey?: string;
   genres: string[];
   publishedAt: Date | null;
   seriesTitle?: string | null;
@@ -54,11 +58,12 @@ const CATALOG_SEED_BOOKS: CatalogSeedBook[] = [
     publishedAt: new Date("2025-01-01T00:00:00.000Z"),
   },
   {
-    id: "the-ascended--grenwich-&-lennox",
+    id: THE_ASCENDED_BOOK_ID,
     title: "The Ascended",
     author: "Grenwich & Lennox",
     description: null,
-    coverKey: bookCoverKey("the-ascended--grenwich-&-lennox", "jpg"),
+    coverKey: `${THE_ASCENDED_STORAGE_PREFIX}/cover.jpg`,
+    pdfKey: `${THE_ASCENDED_STORAGE_PREFIX}/original.pdf`,
     genres: [],
     publishedAt: new Date("1988-01-01T00:00:00.000Z"),
   },
@@ -147,7 +152,7 @@ export async function seedCatalogBooks() {
         author: book.author,
         description: book.description,
         coverKey: book.coverKey,
-        pdfKey: bookPdfKey(book.id),
+        pdfKey: book.pdfKey ?? bookPdfKey(book.id),
         genres: [...book.genres],
         publishedAt: book.publishedAt,
         seriesTitle: book.seriesTitle ?? null,
@@ -160,7 +165,7 @@ export async function seedCatalogBooks() {
         author: book.author,
         description: book.description,
         coverKey: book.coverKey,
-        pdfKey: bookPdfKey(book.id),
+        pdfKey: book.pdfKey ?? bookPdfKey(book.id),
         genres: [...book.genres],
         publishedAt: book.publishedAt,
         seriesTitle: book.seriesTitle ?? null,

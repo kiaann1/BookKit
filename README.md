@@ -125,6 +125,19 @@ The PDF lives at `storage/books/the-poppy-war/original.pdf` (gitignored).
 UPDATE "User" SET role = 'ADMIN' WHERE email = 'you@example.com';
 ```
 
+## Phase 2 — Bookshelf & showcase
+
+- Add books from catalog detail pages or browse **My bookshelf** (`/shelf`)
+- Filter by status: Want to Read, Currently Reading, Read, DNF
+- Rate books (1–5 stars) and set started/finished dates on shelf cards or book detail
+- **Profile** (`/profile`): pin up to 6 showcase favorites and reorder them
+
+After pulling Phase 2 changes, run:
+
+```bash
+npm run db:migrate
+```
+
 ## Password reset (development)
 
 Without email configured, reset links are logged to the server console when you use **Forgot password**.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { catalogBookPath } from "@/lib/books/paths";
 import type { FeaturedCover } from "@/lib/home/featured-covers";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
@@ -51,7 +52,7 @@ export function HomeSpotlight({ books }: HomeSpotlightProps) {
           {books.map((book) => (
             <motion.div key={book.id} variants={staggerItem}>
               <Link
-                href={`/catalog/${book.id}`}
+                href={catalogBookPath(book.id)}
                 className="group block overflow-hidden rounded-xl border border-border/80 bg-card card-glow transition-transform duration-300 hover:-translate-y-1 sm:rounded-2xl"
               >
                 <div className="relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-primary/10 to-brand-coral/10">

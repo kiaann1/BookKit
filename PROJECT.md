@@ -2,7 +2,7 @@
 
 > A bookish social reading platform combining a personal bookshelf, in-browser reading, recommendations, and community features — inspired by Fable, Goodreads, and Kindle.
 
-**Status:** Phase 1 complete (catalog & admin upload) — Phase 2+ in progress  
+**Status:** Phase 2 complete (bookshelf & showcase) — Phase 3+ in progress  
 **Initial platform:** Web (responsive)  
 **Future platform:** Native mobile app (iOS / Android)
 
@@ -263,13 +263,15 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 **Goal:** Users curate their shelf and track status.
 
-- [ ] Add/remove book from personal shelf
-- [ ] Status: Want to Read, Currently Reading, Read, DNF
-- [ ] Optional rating and dates
-- [ ] "My Bookshelf" page with filters by status
-- [ ] Showcase books on profile (select & order)
+- [x] Add/remove book from personal shelf
+- [x] Status: Want to Read, Currently Reading, Read, DNF
+- [x] Optional rating and dates
+- [x] "My Bookshelf" page with filters by status
+- [x] Showcase books on profile (select & order, up to 6)
 
 **Exit criteria:** User shelf reflects status changes; profile shows showcase.
+
+**Migration:** `20250610160000_add_showcase_order` adds `showcaseOrder` to `UserBook`. Run `npm run db:migrate`.
 
 ---
 

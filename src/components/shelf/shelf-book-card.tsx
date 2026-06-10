@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ShelfBookCardActions } from "@/components/shelf/shelf-book-card-actions";
+import { StarRating } from "@/components/shelf/star-rating";
+import { catalogBookPath, readBookPath } from "@/lib/books/paths";
 import type { ShelfBook } from "@/lib/shelf/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +19,7 @@ export function ShelfBookCard({ book }: ShelfBookCardProps) {
 
   return (
     <div className="group flex gap-3 rounded-xl border border-border/80 bg-card p-3 card-glow transition-transform duration-300 active:scale-[0.99] sm:gap-4 sm:rounded-2xl sm:p-4 sm:hover:-translate-y-0.5">
-      <Link href={`/catalog/${book.id}`} className="shrink-0">
+      <Link href={catalogBookPath(book.id)} className="shrink-0">
         <div className="relative h-32 w-[4.5rem] overflow-hidden rounded-lg bg-gradient-to-br from-primary/15 to-brand-coral/15 sm:h-28 sm:w-20 sm:rounded-xl">
           {book.coverUrl ? (
             <Image
@@ -41,12 +44,18 @@ export function ShelfBookCard({ book }: ShelfBookCardProps) {
             {SHELF_STATUS_LABELS[book.shelfStatus]}
           </Badge>
         </div>
-        <Link href={`/catalog/${book.id}`}>
+        <Link href={catalogBookPath(book.id)}>
           <h3 className="mt-2 line-clamp-2 font-medium leading-snug group-hover:text-primary">
             {book.title}
           </h3>
         </Link>
         <p className="mt-1 text-sm text-muted-foreground">{book.author}</p>
+
+        {book.rating ? (
+          <div className="mt-2">
+            <StarRating value={book.rating} size="sm" />
+          </div>
+        ) : null}
 
         {hasProgress && (
           <div className="mt-3">
@@ -67,7 +76,7 @@ export function ShelfBookCard({ book }: ShelfBookCardProps) {
           </div>
         )}
 
-        <Link href={`/read/${book.id}`} className="mt-3 block sm:inline-block">
+        <Link href={readBookPath(book.id)} className="mt-3 block sm:inline-block">
           <Button
             size="sm"
             variant={hasProgress ? "default" : "outline"}
@@ -76,6 +85,8 @@ export function ShelfBookCard({ book }: ShelfBookCardProps) {
             {hasProgress ? "Continue" : "Read"}
           </Button>
         </Link>
+
+        <ShelfBookCardActions book={book} />
       </div>
     </div>
   );

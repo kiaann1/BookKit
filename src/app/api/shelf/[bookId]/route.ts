@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
-import { removeFromShelf, updateShelfStatus } from "@/lib/shelf";
+import { removeFromShelf, updateShelfEntry } from "@/lib/shelf";
 import { updateShelfSchema } from "@/lib/validations/shelf";
 
 type RouteContext = {
   params: Promise<{ bookId: string }>;
 };
+
+function parseOptionalDate(value: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return new Date(`${value}T12:00:00.000Z`);
+}
 
 export async function PATCH(request: Request, context: RouteContext) {
   const user = await getAuthenticatedUser();
@@ -26,11 +33,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const result = await updateShelfStatus(
-      userId,
-      bookId,
-      parsed.data.status,
-    );
+    const result = await updateShelfEntry(userId, bookId, {
+      status: parsed.data.status,
+      rating: parsed.data.rating,
+      review: parsed.data.review,
+      startedAt: parseOptionalDate(parsed.data.startedAt),
+      finishedAt: parseOptionalDate(parsed.data.finishedAt),
+    });
 
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 404 });
