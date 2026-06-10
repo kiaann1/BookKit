@@ -1,7 +1,16 @@
 import { del, get, list, put } from "@vercel/blob";
 
 export function isBlobConfigured() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    return true;
+  }
+
+  // On Vercel, linked Blob stores authenticate via OIDC (no static token required).
+  if (process.env.VERCEL === "1") {
+    return Boolean(process.env.BLOB_STORE_ID || process.env.VERCEL_OIDC_TOKEN);
+  }
+
+  return false;
 }
 
 function normalizeKey(key: string) {
@@ -30,16 +39,43 @@ export async function blobObjectExists(key: string) {
   return blob !== null;
 }
 
+function blobUploadAccess(requested: "public" | "private"): "public" | "private" {
+  if (process.env.BLOB_STORE_ACCESS === "public") {
+    return requested;
+  }
+  // Private Blob stores reject `access: "public"`; files are served through our API.
+  return "private";
+}
+
+export type BlobUploadOptions = {
+  onProgress?: (loaded: number, total: number) => void;
+};
+
 export async function uploadBlob(
   key: string,
   body: Buffer,
   contentType: string,
   access: "public" | "private",
+  options: BlobUploadOptions = {},
 ): Promise<{ url: string }> {
+  const useMultipart =
+    process.env.BLOB_DISABLE_MULTIPART !== "true" &&
+    body.byteLength > 20 * 1024 * 1024;
+
   const result = await put(normalizeKey(key), body, {
-    access,
+    access: blobUploadAccess(access),
     contentType,
     addRandomSuffix: false,
+    allowOverwrite: true,
+    multipart: useMultipart,
+    onUploadProgress: options.onProgress
+      ? (event) => {
+          options.onProgress?.(
+            event.loaded,
+            event.total ?? body.byteLength,
+          );
+        }
+      : undefined,
   });
 
   return { url: result.url };

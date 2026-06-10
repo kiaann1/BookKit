@@ -241,11 +241,49 @@ export function PdfReader({
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const doc = await pdfjs.getDocument({
-          url: pdfUrl,
-          withCredentials: true,
-          ...getPdfJsDocumentOptions(pdfjs.version),
-        }).promise;
+        const probe = await fetch(pdfUrl, {
+          credentials: "include",
+          headers: { Range: "bytes=0-0" },
+        });
+        if (!probe.ok) {
+          if (probe.status === 401) {
+            throw new Error("unauthorized");
+          }
+          if (probe.status === 404) {
+            let detail = "missing";
+            try {
+              const body = (await probe.json()) as { error?: string };
+              if (body.error === "pdf_not_in_storage") {
+                detail = "storage";
+              }
+            } catch {
+              // Empty or non-JSON 404 body.
+            }
+            throw new Error(detail);
+          }
+          throw new Error(`PDF fetch failed (${probe.status})`);
+        }
+
+        let doc: import("pdfjs-dist").PDFDocumentProxy;
+        try {
+          doc = await pdfjs.getDocument({
+            url: pdfUrl,
+            withCredentials: true,
+            ...getPdfJsDocumentOptions(pdfjs.version),
+          }).promise;
+        } catch {
+          const response = await fetch(pdfUrl, { credentials: "include" });
+          if (!response.ok) {
+            throw new Error(`PDF fetch failed (${response.status})`);
+          }
+          const data = await response.arrayBuffer();
+          doc = await pdfjs.getDocument({
+            data,
+            ...getPdfJsDocumentOptions(pdfjs.version),
+            disableRange: true,
+            disableStream: true,
+          }).promise;
+        }
 
         if (cancelled) {
           return;
@@ -264,17 +302,26 @@ export function PdfReader({
         if (!cancelled) {
           const message =
             reason instanceof Error ? reason.message.toLowerCase() : "";
-          const code = message.includes("(401)")
-            ? "unauthorized"
-            : message.includes("(404)")
-              ? "missing"
-              : "unknown";
+          const code =
+            reason instanceof Error && reason.message === "storage"
+              ? "storage"
+              : reason instanceof Error && reason.message === "unauthorized"
+                ? "unauthorized"
+                : reason instanceof Error && reason.message === "missing"
+                  ? "missing"
+                  : message.includes("(401)")
+                    ? "unauthorized"
+                    : message.includes("(404)")
+                      ? "missing"
+                      : "unknown";
           setError(
-            code === "missing"
-              ? "This book's PDF hasn't been uploaded yet. An admin needs to add the file."
-              : code === "unauthorized"
-                ? "Sign in to read this book."
-                : "Could not load this book. Try again later.",
+            code === "storage"
+              ? "This book's PDF is in Blob storage but this server can't read it. On Vercel, add BLOB_READ_WRITE_TOKEN (connect your Blob store to the project) and redeploy."
+              : code === "missing"
+                ? "This book's PDF hasn't been uploaded yet. An admin needs to add the file."
+                : code === "unauthorized"
+                  ? "Sign in to read this book."
+                  : "Could not load this book. Try again later.",
           );
           setIsLoading(false);
         }

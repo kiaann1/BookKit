@@ -5,11 +5,13 @@
  *   npx tsx scripts/sync-storage-to-db.ts                    # upsert via Prisma
  *   npx tsx scripts/sync-storage-to-db.ts --sql              # print SQL for Neon
  *   npx tsx scripts/sync-storage-to-db.ts --sql --out scripts/seed-books.sql
- *   npx tsx scripts/sync-storage-to-db.ts --upload-files       # DB sync + upload PDFs/covers
- *   npx tsx scripts/sync-storage-to-db.ts --files-only         # upload only (no DB)
+ *   npx tsx scripts/sync-storage-to-db.ts --upload-files       # DB sync + upload (falls back to files-only if DB unreachable)
+ *   npx tsx scripts/sync-storage-to-db.ts --files-only         # upload only (use this on networks that block Neon)
+ *   npx tsx scripts/sync-storage-to-db.ts --files-only --skip-existing   # skip files already in Blob/S3
  *
  * Requires DATABASE_URL in .env for DB sync (not needed with --files-only).
  * For uploads, set BLOB_READ_WRITE_TOKEN (Vercel Blob) or S3_* env vars in .env.
+ * Set BLOB_DISABLE_MULTIPART=true if uploads hang on your network.
  */
 
 import { config } from "dotenv";
@@ -27,11 +29,83 @@ import {
 } from "../src/lib/books/metadata";
 import { BookStatus } from "../src/lib/constants/book-status";
 import { bookCoverKey, bookPdfKey } from "../src/lib/storage/keys";
-import { isBlobConfigured, uploadFile } from "../src/lib/storage";
+import { normalizeDatabaseUrl } from "../src/lib/db";
+import { fileExists, isBlobConfigured, uploadFile } from "../src/lib/storage";
 import { isS3Configured } from "../src/lib/storage/s3";
 
 const BOOKS_ROOT = path.join(process.cwd(), "storage", "books");
 const SYSTEM_UPLOADER_ID = "bookkit-system-uploader";
+const DB_LOOKUP_TIMEOUT_MS = 12_000;
+const UPLOAD_TIMEOUT_MS = 10 * 60_000;
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`${label} timed out after ${ms / 1000}s`));
+      }, ms);
+    }),
+  ]);
+}
+
+function createUploadProgress(label: string) {
+  let lastLogged = 0;
+
+  return (loaded: number, total: number) => {
+    const now = Date.now();
+    if (now - lastLogged < 1500 && loaded < total) {
+      return;
+    }
+
+    lastLogged = now;
+    const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+    process.stdout.write(
+      `\r  ${label}… ${pct}% (${formatBytes(loaded)} / ${formatBytes(total)})   `,
+    );
+  };
+}
+
+function finishUploadProgress() {
+  process.stdout.write("\n");
+}
+
+function createScriptPrismaClient() {
+  const raw = process.env.DATABASE_URL?.trim();
+  if (!raw) {
+    return new PrismaClient();
+  }
+
+  let datasourceUrl = normalizeDatabaseUrl(raw);
+  if (!datasourceUrl.includes("connect_timeout=")) {
+    const separator = datasourceUrl.includes("?") ? "&" : "?";
+    datasourceUrl = `${datasourceUrl}${separator}connect_timeout=10`;
+  }
+
+  return new PrismaClient({ datasourceUrl });
+}
+
+function isDbUnreachable(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const name = "name" in error ? String(error.name) : "";
+  const message = "message" in error ? String(error.message) : "";
+
+  return (
+    name === "PrismaClientInitializationError" ||
+    message.includes("Can't reach database") ||
+    message.includes("timed out")
+  );
+}
 
 type LocalBook = {
   id: string;
@@ -72,7 +146,9 @@ async function loadLocalBooks(): Promise<LocalBook[]> {
   for (const id of entries.sort()) {
     const pdfKey = bookPdfKey(id);
     if (!existsSync(path.join(process.cwd(), "storage", pdfKey))) {
-      console.warn(`Skipping ${id} — no original.pdf`);
+      console.warn(
+        `Skipping ${id} — no storage/${pdfKey} (check folder name matches the book id in the database)`,
+      );
       continue;
     }
 
@@ -213,43 +289,74 @@ function isRemoteStorageConfigured() {
   return isBlobConfigured() || isS3Configured();
 }
 
-async function uploadBookFiles(book: LocalBook) {
+async function uploadBookFiles(
+  book: LocalBook,
+  index: number,
+  total: number,
+  skipExisting: boolean,
+) {
   if (!isRemoteStorageConfigured()) {
     console.warn("Blob/S3 not configured — skipping file upload for", book.id);
     return;
   }
 
+  console.log(`[${index}/${total}] ${book.title} (${book.id})`);
+
   const pdfPath = path.join(process.cwd(), "storage", book.pdfKey);
-  const pdfBody = await readFile(pdfPath);
-  await uploadFile({
-    key: book.pdfKey,
-    body: pdfBody,
-    contentType: "application/pdf",
-    access: "private",
-  });
-  console.log("Uploaded PDF:", book.pdfKey);
+  if (skipExisting && (await fileExists(book.pdfKey))) {
+    console.log("  Skipping PDF (already in remote storage)");
+  } else {
+    console.log("  Reading PDF from disk…");
+    const pdfBody = await readFile(pdfPath);
+    const pdfProgress = createUploadProgress("Uploading PDF");
+    await withTimeout(
+      uploadFile({
+        key: book.pdfKey,
+        body: pdfBody,
+        contentType: "application/pdf",
+        access: "private",
+        onProgress: pdfProgress,
+      }),
+      UPLOAD_TIMEOUT_MS,
+      `PDF upload for ${book.id}`,
+    );
+    finishUploadProgress();
+    console.log("  ✓ PDF uploaded");
+  }
 
   if (book.coverKey) {
-    const coverPath = path.join(process.cwd(), "storage", book.coverKey);
-    const coverBody = await readFile(coverPath);
-    const extension = book.coverKey.split(".").pop() ?? "jpg";
-    const contentType =
-      extension === "png"
-        ? "image/png"
-        : extension === "webp"
-          ? "image/webp"
-          : "image/jpeg";
-    await uploadFile({
-      key: book.coverKey,
-      body: coverBody,
-      contentType,
-      access: "public",
-    });
-    console.log("Uploaded cover:", book.coverKey);
+    if (skipExisting && (await fileExists(book.coverKey))) {
+      console.log("  Skipping cover (already in remote storage)");
+    } else {
+      const coverPath = path.join(process.cwd(), "storage", book.coverKey);
+      console.log("  Reading cover from disk…");
+      const coverBody = await readFile(coverPath);
+      const extension = book.coverKey.split(".").pop() ?? "jpg";
+      const contentType =
+        extension === "png"
+          ? "image/png"
+          : extension === "webp"
+            ? "image/webp"
+            : "image/jpeg";
+      const coverProgress = createUploadProgress("Uploading cover");
+      await withTimeout(
+        uploadFile({
+          key: book.coverKey,
+          body: coverBody,
+          contentType,
+          access: "public",
+          onProgress: coverProgress,
+        }),
+        UPLOAD_TIMEOUT_MS,
+        `Cover upload for ${book.id}`,
+      );
+      finishUploadProgress();
+      console.log("  ✓ Cover uploaded");
+    }
   }
 }
 
-async function uploadAllBookFiles(books: LocalBook[]) {
+async function uploadAllBookFiles(books: LocalBook[], skipExisting: boolean) {
   if (!isRemoteStorageConfigured()) {
     console.error(
       "Blob/S3 is not configured. Add BLOB_READ_WRITE_TOKEN (from Vercel → Storage → your Blob store) to .env",
@@ -257,24 +364,43 @@ async function uploadAllBookFiles(books: LocalBook[]) {
     process.exit(1);
   }
 
-  let uploaded = 0;
-
-  for (const book of books) {
-    await uploadBookFiles(book);
-    uploaded += 1;
+  const target = isBlobConfigured() ? "Vercel Blob" : "S3";
+  console.log(`Uploading to ${target}…`);
+  if (skipExisting) {
+    console.log("Skipping files that already exist in remote storage.\n");
+  } else {
+    console.log(
+      "Large PDFs can take several minutes on slow networks — progress updates every ~1.5s.\n",
+    );
   }
 
-  console.log(`\nUploaded files for ${uploaded} book(s).`);
+  let index = 0;
+  for (const book of books) {
+    index += 1;
+    await uploadBookFiles(book, index, books.length, skipExisting);
+  }
+
+  console.log(`\nUploaded files for ${books.length} book(s).`);
   console.log(
     "Book metadata must already exist in Neon (e.g. scripts/seed-books.sql).",
   );
 }
 
 async function syncWithPrisma(books: LocalBook[], uploadFiles: boolean) {
-  const prisma = new PrismaClient();
-  const uploadedById = await resolveUploaderId(prisma);
+  const prisma = createScriptPrismaClient();
+  console.log("Connecting to database…");
+  const uploadedById = await withTimeout(
+    resolveUploaderId(prisma),
+    DB_LOOKUP_TIMEOUT_MS,
+    "Database lookup",
+  );
 
   try {
+    if (uploadFiles) {
+      const target = isBlobConfigured() ? "Vercel Blob" : "S3";
+      console.log(`\nUploading files to ${target}…\n`);
+    }
+
     for (const book of books) {
       await prisma.book.upsert({
         where: { id: book.id },
@@ -310,7 +436,13 @@ async function syncWithPrisma(books: LocalBook[], uploadFiles: boolean) {
       console.log(`Synced: ${book.title} (${book.id})`);
 
       if (uploadFiles) {
-        await uploadBookFiles(book);
+        const index = books.indexOf(book) + 1;
+        await uploadBookFiles(
+          book,
+          index,
+          books.length,
+          process.argv.includes("--skip-existing"),
+        );
       }
     }
   } finally {
@@ -332,6 +464,7 @@ async function main() {
   const outIndex = process.argv.indexOf("--out");
   const outPath = outIndex >= 0 ? process.argv[outIndex + 1] : null;
   const filesOnly = process.argv.includes("--files-only");
+  const skipExisting = process.argv.includes("--skip-existing");
   const uploadFiles =
     filesOnly ||
     process.argv.includes("--upload-files") ||
@@ -350,11 +483,25 @@ async function main() {
   }
 
   if (filesOnly) {
-    await uploadAllBookFiles(books);
+    await uploadAllBookFiles(books, skipExisting);
     return;
   }
 
-  await syncWithPrisma(books, uploadFiles);
+  try {
+    await syncWithPrisma(books, uploadFiles);
+  } catch (error) {
+    if (uploadFiles && isDbUnreachable(error)) {
+      console.warn(
+        "\nDatabase unreachable from this network — uploading files to Blob/S3 only.",
+      );
+      console.warn(
+        "(Book metadata must already be in Neon, e.g. scripts/seed-books.sql.)\n",
+      );
+      await uploadAllBookFiles(books, skipExisting);
+      return;
+    }
+    throw error;
+  }
 
   if (!uploadFiles && !isRemoteStorageConfigured()) {
     console.log(

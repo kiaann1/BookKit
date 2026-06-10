@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { getPublicFileUrl, getStorageDriver, readFile } from "@/lib/storage";
 import { getS3SignedUrl } from "@/lib/storage/s3";
 
+export const runtime = "nodejs";
+
 type RouteContext = {
   params: Promise<{ bookId: string }>;
 };

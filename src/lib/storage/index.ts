@@ -47,6 +47,7 @@ export async function uploadFile(options: {
   body: Buffer;
   contentType: string;
   access: StorageAccess;
+  onProgress?: (loaded: number, total: number) => void;
 }): Promise<UploadResult> {
   const driver = getStorageDriver();
 
@@ -56,6 +57,7 @@ export async function uploadFile(options: {
       options.body,
       options.contentType,
       options.access,
+      { onProgress: options.onProgress },
     );
     return { publicUrl: result.url };
   }
