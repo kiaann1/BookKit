@@ -2,15 +2,15 @@ import { getPublishedBookById } from "@/lib/books";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import type { ReadingProgress, SaveProgressInput } from "@/lib/progress/types";
-import { ShelfStatus, type ShelfStatus as ShelfStatusType } from "@/lib/constants/shelf-status";
-import type { ShelfEntry } from "@/lib/shelf/types";
+import { ShelfStatus } from "@/lib/constants/shelf-status";
 import {
   localAddToShelf,
   localGetShelfEntries,
   localGetShelfEntry,
 } from "@/lib/shelf/local";
-import type { ShelfBook } from "@/lib/shelf/types";
 import { enrichShelfEntries } from "@/lib/shelf/enrich";
+import { toShelfEntry } from "@/lib/shelf/map-entry";
+import type { ShelfBook } from "@/lib/shelf/types";
 
 function computePercent(currentPage: number, totalPages: number) {
   if (totalPages <= 0) {
@@ -209,20 +209,7 @@ export async function getContinueReading(
         },
         orderBy: { lastReadAt: "desc" },
       });
-      entries = rows.map((row) => ({
-        id: row.id,
-        bookId: row.bookId,
-        status: row.status as ShelfStatusType,
-        rating: row.rating,
-        startedAt: row.startedAt,
-        finishedAt: row.finishedAt,
-        currentPage: row.currentPage,
-        totalPages: row.totalPages,
-        progressPercent: row.progressPercent,
-        lastReadAt: row.lastReadAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      }));
+      entries = rows.map(toShelfEntry);
     } catch {
       entries = await localGetShelfEntries(userId);
     }

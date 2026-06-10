@@ -119,11 +119,9 @@ The PDF lives at `storage/books/the-poppy-war/original.pdf` (gitignored).
 
 **Local dev with Blob:** Run `vercel env pull` after linking the project so `BLOB_READ_WRITE_TOKEN` is in `.env`.
 
-**Promote a real user to admin** (when auth is enabled):
+**Admin access:** Set `ADMIN_EMAILS` in env (comma-separated). Those users are promoted to `ADMIN` on login. You can also run `scripts/promote-admin.sql` in Neon.
 
-```sql
-UPDATE "User" SET role = 'ADMIN' WHERE email = 'you@example.com';
-```
+Non-admins who open `/admin` are redirected to `/dashboard`.
 
 ## Phase 2 — Bookshelf & showcase
 

@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { UserRole } from "@prisma/client";
 import { compare } from "bcryptjs";
+import { isBootstrapAdminEmail } from "@/lib/auth/bootstrap-admins";
 import { prisma } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
 
@@ -36,6 +38,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        let role = user.role;
+        if (isBootstrapAdminEmail(user.email) && role !== UserRole.ADMIN) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { role: UserRole.ADMIN },
+          });
+          role = UserRole.ADMIN;
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -44,7 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             (`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.username),
           image: user.avatarUrl,
           username: user.username,
-          role: user.role,
+          role,
           onboardingCompleted: Boolean(user.onboardingCompletedAt),
         };
       },
@@ -57,6 +68,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.username = user.username;
         token.role = user.role;
         token.onboardingCompleted = user.onboardingCompleted ?? false;
+      }
+
+      if (token.id && typeof token.id === "string") {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: {
+              role: true,
+              username: true,
+              onboardingCompletedAt: true,
+            },
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.username = dbUser.username;
+            token.onboardingCompleted = Boolean(dbUser.onboardingCompletedAt);
+          }
+        } catch {
+          // Keep existing token claims if the database is unreachable.
+        }
       }
 
       if (trigger === "update") {

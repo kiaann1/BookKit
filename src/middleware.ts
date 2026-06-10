@@ -1,3 +1,4 @@
+import { UserRole } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -48,6 +49,13 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isLoggedIn && onboardingCompleted && isOnboarding) {
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+  }
+
+  const isAdminRoute =
+    pathname === "/admin" || pathname.startsWith("/admin/");
+
+  if (isAdminRoute && isLoggedIn && token?.role !== UserRole.ADMIN) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
