@@ -1,0 +1,744 @@
+"use client";
+
+import "@/lib/pdfjs/polyfills";
+import { getPdfJsDocumentOptions } from "@/lib/pdfjs/document-options";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Lightbulb,
+  LightbulbOff,
+  Loader2,
+  Maximize,
+  Minimize,
+  Minus,
+  Moon,
+  Plus,
+  Sun,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
+
+type PdfReaderProps = {
+  bookId: string;
+  title: string;
+  author: string;
+  initialPage: number;
+};
+
+const SAVE_DEBOUNCE_MS = 2000;
+const FOCUS_CHROME_HIDE_MS = 2500;
+
+export function PdfReader({
+  bookId,
+  title,
+  author,
+  initialPage,
+}: PdfReaderProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const pdfRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<import("pdfjs-dist").RenderTask | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<{
+    currentPage: number;
+    totalPages: number;
+  } | null>(null);
+  const currentPageRef = useRef(initialPage);
+  const totalPagesRef = useRef(0);
+
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(0);
+  const [scale, setScale] = useState(1.15);
+  const [manualScale, setManualScale] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+  const [lightsOff, setLightsOff] = useState(false);
+  const [showFocusChrome, setShowFocusChrome] = useState(false);
+  const focusChromeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pdfUrl = `/api/files/books/${bookId}/pdf`;
+
+  const saveProgress = useCallback(
+    async (page: number, total: number) => {
+      setIsSaving(true);
+      try {
+        await fetch(`/api/progress/${bookId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentPage: page, totalPages: total }),
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [bookId],
+  );
+
+  const queueSave = useCallback(
+    (page: number, total: number) => {
+      pendingSaveRef.current = { currentPage: page, totalPages: total };
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      saveTimerRef.current = setTimeout(() => {
+        const pending = pendingSaveRef.current;
+        if (pending) {
+          void saveProgress(pending.currentPage, pending.totalPages);
+        }
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [saveProgress],
+  );
+
+  const goToPage = useCallback(
+    (page: number) => {
+      const total = totalPagesRef.current;
+      if (total === 0) {
+        return;
+      }
+      const next = Math.min(Math.max(1, page), total);
+      currentPageRef.current = next;
+      setCurrentPage(next);
+    },
+    [],
+  );
+
+  const revealFocusChrome = useCallback(() => {
+    setShowFocusChrome(true);
+    if (focusChromeTimerRef.current) {
+      clearTimeout(focusChromeTimerRef.current);
+    }
+    focusChromeTimerRef.current = setTimeout(() => {
+      setShowFocusChrome(false);
+    }, FOCUS_CHROME_HIDE_MS);
+  }, []);
+
+  const exitLightsOff = useCallback(() => {
+    setLightsOff(false);
+    setShowFocusChrome(false);
+    if (focusChromeTimerRef.current) {
+      clearTimeout(focusChromeTimerRef.current);
+    }
+  }, []);
+
+  function handleEdgeTap(clientX: number, width: number) {
+    if (isLoading || error) {
+      return;
+    }
+
+    const ratio = clientX / width;
+    if (ratio < 0.2) {
+      goToPage(currentPageRef.current - 1);
+    } else if (ratio > 0.8) {
+      goToPage(currentPageRef.current + 1);
+    }
+
+    if (lightsOff) {
+      revealFocusChrome();
+    }
+  }
+
+  function handleReadingAreaClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (!lightsOff && !isMobile) {
+      return;
+    }
+
+    handleEdgeTap(event.clientX, event.currentTarget.getBoundingClientRect().width);
+  }
+
+  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+    touchRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+    };
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (!touchRef.current || isLoading || error) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchRef.current.x;
+    const dy = touch.clientY - touchRef.current.y;
+    const elapsed = Date.now() - touchRef.current.time;
+    touchRef.current = null;
+
+    if (elapsed < 300 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+      handleEdgeTap(touch.clientX, window.innerWidth);
+      return;
+    }
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 48) {
+      if (dx < 0) {
+        goToPage(currentPageRef.current + 1);
+      } else {
+        goToPage(currentPageRef.current - 1);
+      }
+      if (lightsOff) {
+        revealFocusChrome();
+      }
+    }
+  }
+
+  function adjustZoom(delta: number) {
+    setManualScale((current) => {
+      const base = current ?? scale;
+      return Math.min(2.5, Math.max(0.5, base + delta));
+    });
+  }
+
+  function resetZoomFit() {
+    setManualScale(null);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+        const response = await fetch(pdfUrl, { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(`PDF fetch failed (${response.status})`);
+        }
+
+        const data = await response.arrayBuffer();
+
+        const doc = await pdfjs.getDocument({
+          data,
+          ...getPdfJsDocumentOptions(pdfjs.version),
+          disableRange: true,
+          disableStream: true,
+        }).promise;
+
+        if (cancelled) {
+          return;
+        }
+
+        pdfRef.current = doc;
+        const total = doc.numPages;
+        totalPagesRef.current = total;
+        setTotalPages(total);
+
+        const startPage = Math.min(Math.max(1, initialPage), total);
+        currentPageRef.current = startPage;
+        setCurrentPage(startPage);
+        setIsLoading(false);
+      } catch {
+        if (!cancelled) {
+          setError("Could not load this book. Try again later.");
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfUrl, initialPage]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setManualScale(null);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    const element = scrollContainerRef.current;
+    if (!element || isLoading) {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+
+    observer.observe(element);
+    setContainerWidth(element.clientWidth);
+
+    return () => observer.disconnect();
+  }, [isLoading]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function renderPage() {
+      const doc = pdfRef.current;
+      const canvas = canvasRef.current;
+      if (!doc || !canvas || totalPages === 0) {
+        return;
+      }
+
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+
+      const page = await doc.getPage(currentPage);
+      if (cancelled) {
+        return;
+      }
+
+      let renderScale = manualScale ?? scale;
+      if (isMobile && manualScale === null && containerWidth > 0) {
+        const baseViewport = page.getViewport({ scale: 1 });
+        renderScale = Math.min(
+          2.5,
+          Math.max(0.5, (containerWidth - 16) / baseViewport.width),
+        );
+      }
+
+      const viewport = page.getViewport({ scale: renderScale });
+      const context = canvas.getContext("2d");
+      if (!context) {
+        return;
+      }
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      const task = page.render({
+        canvasContext: context,
+        viewport,
+        canvas,
+      });
+      renderTaskRef.current = task;
+
+      try {
+        await task.promise;
+      } catch (reason) {
+        if (
+          reason instanceof Error &&
+          reason.name === "RenderingCancelledException"
+        ) {
+          return;
+        }
+        throw reason;
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      renderTaskRef.current = null;
+      queueSave(currentPage, totalPages);
+    }
+
+    void renderPage();
+
+    return () => {
+      cancelled = true;
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+    };
+  }, [
+    currentPage,
+    scale,
+    manualScale,
+    containerWidth,
+    isMobile,
+    totalPages,
+    queueSave,
+  ]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && lightsOff) {
+        exitLightsOff();
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        goToPage(currentPageRef.current - 1);
+      }
+      if (event.key === "ArrowRight") {
+        goToPage(currentPageRef.current + 1);
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goToPage, lightsOff, exitLightsOff]);
+
+  useEffect(() => {
+    if (lightsOff) {
+      revealFocusChrome();
+    } else {
+      setShowFocusChrome(false);
+      if (focusChromeTimerRef.current) {
+        clearTimeout(focusChromeTimerRef.current);
+      }
+    }
+  }, [lightsOff, revealFocusChrome]);
+
+  useEffect(() => {
+    return () => {
+      if (focusChromeTimerRef.current) {
+        clearTimeout(focusChromeTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        void fetch(`/api/progress/${bookId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pending),
+          keepalive: true,
+        });
+      }
+    };
+  }, [bookId]);
+
+  useEffect(() => {
+    function onFullscreenChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    if (!containerRef.current) {
+      return;
+    }
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await containerRef.current.requestFullscreen();
+    }
+  }
+
+  const progressPercent =
+    totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        "fixed inset-0 z-50 flex h-dvh flex-col",
+        lightsOff
+          ? "bg-black text-zinc-100"
+          : darkMode
+            ? "bg-zinc-950 text-zinc-100"
+            : "bg-zinc-50 text-zinc-900",
+      )}
+    >
+      {!lightsOff && (
+      <header
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-b px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3",
+          "pt-[max(0.625rem,env(safe-area-inset-top))]",
+          darkMode ? "border-zinc-800 bg-zinc-950/95" : "border-zinc-200 bg-white/95",
+        )}
+      >
+        <Link href={`/catalog/${bookId}`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-9 w-9 shrink-0 touch-manipulation sm:h-8 sm:w-auto sm:px-3",
+              darkMode ? "text-zinc-300 hover:text-white" : "",
+            )}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back</span>
+          </Button>
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{title}</p>
+          <p
+            className={cn(
+              "truncate text-xs",
+              darkMode ? "text-zinc-400" : "text-zinc-500",
+            )}
+          >
+            {author}
+          </p>
+        </div>
+
+        {totalPages > 0 && (
+          <p className="shrink-0 rounded-full bg-muted/80 px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground sm:hidden">
+            {currentPage}/{totalPages}
+          </p>
+        )}
+
+        <div className="hidden items-center gap-1 sm:flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 touch-manipulation"
+            onClick={() => adjustZoom(-0.15)}
+            aria-label="Zoom out"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <button
+            type="button"
+            onClick={resetZoomFit}
+            className="w-12 text-center text-xs tabular-nums text-muted-foreground"
+            title="Reset zoom"
+          >
+            {Math.round((manualScale ?? scale) * 100)}%
+          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 touch-manipulation"
+            onClick={() => adjustZoom(0.15)}
+            aria-label="Zoom in"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 touch-manipulation"
+            onClick={() => setDarkMode((value) => !value)}
+            aria-label="Toggle reader theme"
+          >
+            {darkMode ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 touch-manipulation"
+            onClick={() => setLightsOff(true)}
+            aria-label="Lights off"
+            title="Lights off"
+          >
+            <LightbulbOff className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden h-8 w-8 touch-manipulation md:inline-flex"
+            onClick={() => void toggleFullscreen()}
+            aria-label="Toggle fullscreen"
+          >
+            {isFullscreen ? (
+              <Minimize className="h-4 w-4" />
+            ) : (
+              <Maximize className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-0.5 sm:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 touch-manipulation"
+            onClick={() => setLightsOff(true)}
+            aria-label="Lights off"
+          >
+            <LightbulbOff className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+      )}
+
+      {!lightsOff && (
+      <div className="relative h-1 shrink-0 bg-zinc-800">
+        <div
+          className="h-full bg-brand-gradient transition-all duration-300"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+      )}
+
+      <div
+        className="flex flex-1 flex-col overflow-hidden"
+        onMouseMove={lightsOff ? revealFocusChrome : undefined}
+        onTouchStart={lightsOff ? revealFocusChrome : undefined}
+      >
+        {isLoading ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className={cn("text-sm", darkMode ? "text-zinc-400" : "text-zinc-500")}>
+              Opening book…
+            </p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+            <p className="text-sm">{error}</p>
+            <Link href={`/catalog/${bookId}`}>
+              <Button variant="outline">Back to book</Button>
+            </Link>
+          </div>
+        ) : (
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto touch-pan-y">
+            <div
+              className={cn(
+                "flex min-h-full items-center justify-center",
+                lightsOff ? "cursor-default p-0" : "p-2 sm:p-8",
+              )}
+              onClick={handleReadingAreaClick}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <canvas
+                ref={canvasRef}
+                className={cn(
+                  "max-w-full",
+                  lightsOff ? "max-h-[100dvh]" : "shadow-2xl shadow-black/40",
+                )}
+              />
+            </div>
+          </div>
+        )}
+
+        {lightsOff && !isLoading && !error && (
+          <div
+            className={cn(
+              "pointer-events-none fixed inset-0 flex flex-col transition-opacity duration-300",
+              showFocusChrome ? "opacity-100" : "opacity-0",
+            )}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-center p-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                className={cn(
+                  "bg-zinc-900/90 text-zinc-100 shadow-lg backdrop-blur hover:bg-zinc-800",
+                  showFocusChrome && "pointer-events-auto",
+                )}
+                onClick={exitLightsOff}
+              >
+                <Lightbulb className="h-4 w-4" />
+                Lights on
+              </Button>
+            </div>
+
+            <div className="mt-auto flex items-center justify-between px-4 pb-6 sm:px-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-10 w-10 text-zinc-400 hover:bg-zinc-900/80 hover:text-white",
+                  showFocusChrome && "pointer-events-auto",
+                )}
+                disabled={currentPage <= 1}
+                onClick={() => goToPage(currentPage - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+
+              <p className="rounded-full bg-zinc-900/80 px-3 py-1 text-xs tabular-nums text-zinc-300 backdrop-blur">
+                {currentPage} / {totalPages}
+              </p>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-10 w-10 text-zinc-400 hover:bg-zinc-900/80 hover:text-white",
+                  showFocusChrome && "pointer-events-auto",
+                )}
+                disabled={currentPage >= totalPages}
+                onClick={() => goToPage(currentPage + 1)}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!lightsOff && !isLoading && !error && totalPages > 0 && (
+        <footer
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-2 border-t px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3",
+            "pb-[max(0.625rem,env(safe-area-inset-bottom))]",
+            darkMode ? "border-zinc-800 bg-zinc-950/95" : "border-zinc-200 bg-white/95",
+          )}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-11 min-w-11 touch-manipulation px-3 sm:h-9"
+            disabled={currentPage <= 1}
+            onClick={() => goToPage(currentPage - 1)}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Previous</span>
+          </Button>
+
+          <div className="min-w-0 text-center text-sm">
+            <span className="font-medium tabular-nums">
+              <span className="sm:hidden">
+                {currentPage} / {totalPages}
+              </span>
+              <span className="hidden sm:inline">
+                Page {currentPage} of {totalPages}
+              </span>
+            </span>
+            <span
+              className={cn(
+                "mt-0.5 block text-xs",
+                darkMode ? "text-zinc-500" : "text-zinc-400",
+              )}
+            >
+              {progressPercent}%
+              <span className="hidden sm:inline"> complete</span>
+              {isSaving ? " · Saving…" : ""}
+            </span>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-11 min-w-11 touch-manipulation px-3 sm:h-9"
+            disabled={currentPage >= totalPages}
+            onClick={() => goToPage(currentPage + 1)}
+            aria-label="Next page"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
+          </Button>
+        </footer>
+      )}
+    </div>
+  );
+}

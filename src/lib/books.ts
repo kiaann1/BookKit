@@ -1,0 +1,208 @@
+import type { Prisma } from "@prisma/client";
+import type { BookListItem, CatalogFilters } from "@/lib/books/types";
+import {
+  getPublishedStorageBookById,
+  getStorageCatalogBooks,
+  listStorageBooks,
+  mergeStorageIntoCatalog,
+  storageBookToListItem,
+} from "@/lib/books/storage-books";
+import { BookStatus } from "@/lib/constants/book-status";
+import { buildGenreFilterOptions } from "@/lib/constants/genres";
+import { isDatabaseAvailable } from "@/lib/db/health";
+import { prisma } from "@/lib/db";
+import { resolveBookCoverUrl } from "@/lib/covers/book-cover-url";
+
+export type { BookListItem, CatalogFilters } from "@/lib/books/types";
+
+async function toBookListItem(book: {
+  id: string;
+  title: string;
+  author: string;
+  description: string | null;
+  genres: string[];
+  publishedAt: Date | null;
+  seriesTitle: string | null;
+  seriesIndex: number | null;
+  status: string;
+  coverKey: string | null;
+  createdAt: Date;
+}): Promise<BookListItem> {
+  const coverUrl = await resolveBookCoverUrl({
+    bookId: book.id,
+    title: book.title,
+    author: book.author,
+    coverKey: book.coverKey,
+  });
+
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    description: book.description,
+    genres: book.genres,
+    publishedAt: book.publishedAt,
+    seriesTitle: book.seriesTitle,
+    seriesIndex: book.seriesIndex,
+    status: book.status as BookListItem["status"],
+    coverUrl,
+    createdAt: book.createdAt,
+  };
+}
+
+export function buildCatalogWhere(filters: CatalogFilters): Prisma.BookWhereInput {
+  const where: Prisma.BookWhereInput = {
+    status: BookStatus.PUBLISHED,
+  };
+
+  if (filters.genre) {
+    where.genres = { has: filters.genre };
+  }
+
+  if (filters.q?.trim()) {
+    const query = filters.q.trim();
+    where.OR = [
+      { title: { contains: query, mode: "insensitive" } },
+      { author: { contains: query, mode: "insensitive" } },
+      { description: { contains: query, mode: "insensitive" } },
+    ];
+  }
+
+  return where;
+}
+
+async function getAllPublishedBooks() {
+  const storageBooks = await getStorageCatalogBooks({});
+
+  if (!(await isDatabaseAvailable())) {
+    return storageBooks;
+  }
+
+  try {
+    const rows = await prisma.book.findMany({
+      where: { status: BookStatus.PUBLISHED },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    const dbBooks = await Promise.all(rows.map(toBookListItem));
+    return mergeStorageIntoCatalog(dbBooks, {}, storageBooks);
+  } catch {
+    return storageBooks;
+  }
+}
+
+async function getFilteredPublishedBooks(filters: CatalogFilters) {
+  const storageBooks = await getStorageCatalogBooks(filters);
+
+  if (!(await isDatabaseAvailable())) {
+    return storageBooks;
+  }
+
+  try {
+    const rows = await prisma.book.findMany({
+      where: buildCatalogWhere(filters),
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    const dbBooks = await Promise.all(rows.map(toBookListItem));
+    return mergeStorageIntoCatalog(dbBooks, filters, storageBooks);
+  } catch {
+    return storageBooks;
+  }
+}
+
+export async function getCatalogData(filters: CatalogFilters = {}) {
+  const [allBooks, books] = await Promise.all([
+    getAllPublishedBooks(),
+    getFilteredPublishedBooks(filters),
+  ]);
+
+  return {
+    books,
+    genreOptions: buildGenreFilterOptions(allBooks),
+  };
+}
+
+export async function getPublishedBooks(filters: CatalogFilters = {}) {
+  const { books } = await getCatalogData(filters);
+  return books;
+}
+
+export async function getPublishedBookById(id: string) {
+  if (await isDatabaseAvailable()) {
+    try {
+      const book = await prisma.book.findFirst({
+        where: { id, status: BookStatus.PUBLISHED },
+      });
+
+      if (book) {
+        return await toBookListItem(book);
+      }
+    } catch {
+      // Fall through to storage.
+    }
+  }
+
+  return getPublishedStorageBookById(id);
+}
+
+export async function getAllBooksForAdmin() {
+  const storageRecords = await listStorageBooks();
+  const storageMapped = await Promise.all(
+    storageRecords.map(async (book) => ({
+      ...(await storageBookToListItem(book)),
+      uploadedBy: "storage",
+      pdfKey: book.pdfKey,
+    })),
+  );
+
+  if (!(await isDatabaseAvailable())) {
+    return storageMapped;
+  }
+
+  try {
+    const books = await prisma.book.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        uploadedBy: {
+          select: { username: true },
+        },
+      },
+    });
+
+    const mapped = await Promise.all(
+      books.map(async (book) => ({
+        ...(await toBookListItem(book)),
+        uploadedBy: book.uploadedBy.username,
+        pdfKey: book.pdfKey,
+      })),
+    );
+
+    const seen = new Set(mapped.map((book) => book.id));
+    for (const book of storageMapped) {
+      if (!seen.has(book.id)) {
+        mapped.push(book);
+      }
+    }
+
+    return mapped.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+  } catch {
+    return storageMapped;
+  }
+}
+
+export async function getBookForAdmin(id: string) {
+  return prisma.book.findUnique({
+    where: { id },
+    include: {
+      uploadedBy: { select: { username: true } },
+    },
+  });
+}
+
+export async function getCatalogGenres() {
+  const allBooks = await getAllPublishedBooks();
+  return buildGenreFilterOptions(allBooks).map((option) => option.genre);
+}

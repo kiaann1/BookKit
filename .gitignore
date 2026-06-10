@@ -72,6 +72,12 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
+# Local file storage (Phase 1 dev uploads)
+/storage
+
+# PDFs dropped in repo root for seeding (do not commit)
+/*.pdf
+
 # dotenv environment variable files
 .env
 .env.development.local
