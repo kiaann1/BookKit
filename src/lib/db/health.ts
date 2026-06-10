@@ -9,8 +9,12 @@ export function invalidateDatabaseHealthCache() {
   cached = null;
 }
 
+function hasDatabaseUrl() {
+  return Boolean(process.env.DATABASE_URL?.trim());
+}
+
 export async function isDatabaseAvailable(): Promise<boolean> {
-  if (process.env.SKIP_DATABASE === "true") {
+  if (process.env.SKIP_DATABASE === "true" || !hasDatabaseUrl()) {
     return false;
   }
 
