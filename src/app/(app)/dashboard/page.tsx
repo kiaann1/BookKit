@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { getContinueReading } from "@/lib/progress";
+import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
+  await requireCompletedOnboarding();
   const session = await getSession();
   const user = await getAuthenticatedUser();
   const continueReading = user

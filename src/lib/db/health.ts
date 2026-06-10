@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 const CHECK_TTL_MS = 30_000;
-const CHECK_TIMEOUT_MS = 750;
+const CHECK_TIMEOUT_MS = 5_000;
 
 let cached: { ok: boolean; checkedAt: number } | null = null;
 

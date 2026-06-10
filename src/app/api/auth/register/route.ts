@@ -1,8 +1,35 @@
+import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateUniqueUsername } from "@/lib/user/username";
 import { registerSchema } from "@/lib/validations/auth";
+
+function registerErrorMessage(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target)
+        ? error.meta.target.join(", ")
+        : "field";
+      return `An account with that ${target} already exists.`;
+    }
+
+    if (error.code === "P2022") {
+      return "Database schema is out of date. Run scripts/migrate-user-onboarding.sql in Neon.";
+    }
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return "Could not connect to the database. Check DATABASE_URL on the server.";
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (/column.*does not exist/i.test(message)) {
+    return "Database schema is out of date. Run scripts/migrate-user-onboarding.sql in Neon.";
+  }
+
+  return "Something went wrong. Please try again.";
+}
 
 export async function POST(request: Request) {
   try {
@@ -56,9 +83,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ user }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("Register failed:", error);
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      { error: registerErrorMessage(error) },
       { status: 500 },
     );
   }

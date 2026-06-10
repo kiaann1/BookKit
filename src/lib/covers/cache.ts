@@ -28,9 +28,13 @@ async function readDiskCache(): Promise<Record<string, CacheEntry>> {
 }
 
 async function writeDiskCache(data: Record<string, CacheEntry>) {
-  const filePath = cacheFilePath();
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+  try {
+    const filePath = cacheFilePath();
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    // Local storage is read-only on Vercel — memory cache still works.
+  }
 }
 
 export async function getCachedCoverUrl(title: string, author: string) {

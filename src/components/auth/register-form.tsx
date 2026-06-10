@@ -1,62 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useState } from "react";
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ease, staggerContainer } from "@/lib/motion";
-
-type NameInsights = {
-  count: number;
-  isTaken: boolean;
-  displayNameSuggestions: string[];
-  suggestedGenres: string[];
-  bookRecommendations: Array<{
-    title: string;
-    author: string;
-    genre: string;
-    reason: string;
-  }>;
-};
+import { staggerContainer } from "@/lib/motion";
 
 export function RegisterForm() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [nameInsights, setNameInsights] = useState<NameInsights | null>(null);
-  const [checkingName, setCheckingName] = useState(false);
-
-  useEffect(() => {
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
-      setNameInsights(null);
-      return;
-    }
-
-    const timer = window.setTimeout(async () => {
-      setCheckingName(true);
-      try {
-        const params = new URLSearchParams({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-        });
-        const response = await fetch(`/api/auth/check-name?${params.toString()}`);
-        if (response.ok) {
-          setNameInsights(await response.json());
-        }
-      } finally {
-        setCheckingName(false);
-      }
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, [firstName, lastName]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,6 +38,7 @@ export function RegisterForm() {
 
       if (!response.ok) {
         const message =
+          (typeof data.error === "string" ? data.error : null) ??
           data.error?.email?.[0] ??
           data.error?.phone?.[0] ??
           data.error?.firstName?.[0] ??
@@ -92,22 +49,11 @@ export function RegisterForm() {
         return;
       }
 
-      const signInResult = await signIn("credentials", {
+      await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirect: false,
+        redirectTo: "/onboarding",
       });
-
-      if (signInResult?.error) {
-        setError(
-          "Account created, but we couldn't sign you in automatically. Please sign in below.",
-        );
-        router.push("/login");
-        return;
-      }
-
-      // Full navigation so the session cookie is present before middleware runs.
-      window.location.assign("/onboarding");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -118,7 +64,7 @@ export function RegisterForm() {
   return (
     <AuthShell
       title="Join BookKit"
-      description="Create your account and we’ll tailor your shelf in a quick onboarding."
+      description="Create your account — we'll personalize your shelf in onboarding."
       footer={
         <p>
           Have an account?{" "}
@@ -142,8 +88,6 @@ export function RegisterForm() {
               name="firstName"
               autoComplete="given-name"
               required
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
               className="auth-shell-input"
             />
           </AuthField>
@@ -153,63 +97,10 @@ export function RegisterForm() {
               name="lastName"
               autoComplete="family-name"
               required
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
               className="auth-shell-input"
             />
           </AuthField>
         </div>
-
-        <AnimatePresence>
-          {(nameInsights || checkingName) && firstName.trim() && lastName.trim() ? (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.35, ease }}
-              className="overflow-hidden rounded-2xl border border-primary/20 bg-primary/10 p-4"
-            >
-              {checkingName ? (
-                <p className="auth-shell-hint text-sm">Checking your name in the library...</p>
-              ) : nameInsights ? (
-                <div className="space-y-3">
-                  {nameInsights.isTaken ? (
-                    <p className="auth-shell-copy text-sm">
-                      {nameInsights.count} other reader
-                      {nameInsights.count === 1 ? "" : "s"} share your name — we’ll help you stand out in onboarding.
-                    </p>
-                  ) : (
-                    <p className="auth-shell-copy text-sm">
-                      Your name looks unique here. Nice.
-                    </p>
-                  )}
-                  {nameInsights.bookRecommendations.length > 0 ? (
-                    <div>
-                      <p className="auth-shell-label mb-2 text-xs font-semibold uppercase tracking-wide">
-                        Based on your name
-                      </p>
-                      <div className="space-y-2">
-                        {nameInsights.bookRecommendations.slice(0, 2).map((book) => (
-                          <div
-                            key={`${book.title}-${book.author}`}
-                            className="rounded-xl bg-background/30 px-3 py-2"
-                          >
-                            <p className="auth-shell-copy text-sm font-medium">
-                              {book.title}
-                            </p>
-                            <p className="auth-shell-hint text-xs">
-                              {book.author} · {book.reason}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
 
         <AuthField id="email" label="Email">
           <Input

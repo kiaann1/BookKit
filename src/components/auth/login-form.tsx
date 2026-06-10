@@ -26,18 +26,11 @@ export function LoginForm() {
     const formData = new FormData(event.currentTarget);
 
     try {
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirect: false,
+        redirectTo: callbackUrl,
       });
-
-      if (result?.error) {
-        setError("Invalid email or password.");
-        return;
-      }
-
-      window.location.assign(callbackUrl);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

@@ -11,29 +11,53 @@ import { BookStatus } from "@/lib/constants/book-status";
 import { buildGenreFilterOptions } from "@/lib/constants/genres";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
-import { resolveBookCoverUrl } from "@/lib/covers/book-cover-url";
+import {
+  resolveBookCoverUrl,
+  resolveBookListCoverUrl,
+} from "@/lib/covers/book-cover-url";
 
 export type { BookListItem, CatalogFilters } from "@/lib/books/types";
 
-async function toBookListItem(book: {
-  id: string;
-  title: string;
-  author: string;
-  description: string | null;
-  genres: string[];
-  publishedAt: Date | null;
-  seriesTitle: string | null;
-  seriesIndex: number | null;
-  status: string;
-  coverKey: string | null;
-  createdAt: Date;
-}): Promise<BookListItem> {
-  const coverUrl = await resolveBookCoverUrl({
+function canQueryDatabase() {
+  return (
+    Boolean(process.env.DATABASE_URL?.trim()) &&
+    process.env.SKIP_DATABASE !== "true"
+  );
+}
+
+async function toBookListItem(
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    description: string | null;
+    genres: string[];
+    publishedAt: Date | null;
+    seriesTitle: string | null;
+    seriesIndex: number | null;
+    status: string;
+    coverKey: string | null;
+    createdAt: Date;
+  },
+  options: { fetchExternalCover?: boolean } = {},
+): Promise<BookListItem> {
+  let coverUrl = resolveBookListCoverUrl({
     bookId: book.id,
-    title: book.title,
-    author: book.author,
     coverKey: book.coverKey,
   });
+
+  if (!coverUrl && options.fetchExternalCover) {
+    try {
+      coverUrl = await resolveBookCoverUrl({
+        bookId: book.id,
+        title: book.title,
+        author: book.author,
+        coverKey: book.coverKey,
+      });
+    } catch {
+      coverUrl = null;
+    }
+  }
 
   return {
     id: book.id,
@@ -71,44 +95,44 @@ export function buildCatalogWhere(filters: CatalogFilters): Prisma.BookWhereInpu
   return where;
 }
 
-async function getAllPublishedBooks() {
-  const storageBooks = await getStorageCatalogBooks({});
-
-  if (!(await isDatabaseAvailable())) {
-    return storageBooks;
+async function fetchPublishedRows(where: Prisma.BookWhereInput) {
+  if (!canQueryDatabase()) {
+    return null;
   }
 
   try {
-    const rows = await prisma.book.findMany({
-      where: { status: BookStatus.PUBLISHED },
+    return await prisma.book.findMany({
+      where,
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     });
+  } catch (error) {
+    console.error("[catalog] Failed to load books from database:", error);
+    return null;
+  }
+}
 
-    const dbBooks = await Promise.all(rows.map(toBookListItem));
-    return mergeStorageIntoCatalog(dbBooks, {}, storageBooks);
-  } catch {
+async function getAllPublishedBooks() {
+  const storageBooks = await getStorageCatalogBooks({});
+
+  const rows = await fetchPublishedRows({ status: BookStatus.PUBLISHED });
+  if (!rows) {
     return storageBooks;
   }
+
+  const dbBooks = await Promise.all(rows.map((row) => toBookListItem(row)));
+  return mergeStorageIntoCatalog(dbBooks, {}, storageBooks);
 }
 
 async function getFilteredPublishedBooks(filters: CatalogFilters) {
   const storageBooks = await getStorageCatalogBooks(filters);
 
-  if (!(await isDatabaseAvailable())) {
+  const rows = await fetchPublishedRows(buildCatalogWhere(filters));
+  if (!rows) {
     return storageBooks;
   }
 
-  try {
-    const rows = await prisma.book.findMany({
-      where: buildCatalogWhere(filters),
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    });
-
-    const dbBooks = await Promise.all(rows.map(toBookListItem));
-    return mergeStorageIntoCatalog(dbBooks, filters, storageBooks);
-  } catch {
-    return storageBooks;
-  }
+  const dbBooks = await Promise.all(rows.map((row) => toBookListItem(row)));
+  return mergeStorageIntoCatalog(dbBooks, filters, storageBooks);
 }
 
 export async function getCatalogData(filters: CatalogFilters = {}) {
@@ -129,17 +153,17 @@ export async function getPublishedBooks(filters: CatalogFilters = {}) {
 }
 
 export async function getPublishedBookById(id: string) {
-  if (await isDatabaseAvailable()) {
+  if (canQueryDatabase()) {
     try {
       const book = await prisma.book.findFirst({
         where: { id, status: BookStatus.PUBLISHED },
       });
 
       if (book) {
-        return await toBookListItem(book);
+        return await toBookListItem(book, { fetchExternalCover: true });
       }
-    } catch {
-      // Fall through to storage.
+    } catch (error) {
+      console.error("[catalog] Failed to load book by id:", id, error);
     }
   }
 
