@@ -1,3 +1,7 @@
+export function userAvatarKey(userId: string, extension: string) {
+  return `users/${userId}/avatar.${extension}`;
+}
+
 export function bookPdfKey(bookId: string) {
   return `books/${bookId}/original.pdf`;
 }

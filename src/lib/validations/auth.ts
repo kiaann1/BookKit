@@ -6,20 +6,27 @@ export const loginSchema = z.object({
 });
 
 export const registerSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  username: z
+  firstName: z
     .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username must be at most 30 characters")
-    .regex(
-      /^[a-zA-Z0-9_]+$/,
-      "Username can only contain letters, numbers, and underscores",
-    ),
+    .trim()
+    .min(1, "First name is required")
+    .max(60, "First name is too long"),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Last name is required")
+    .max(60, "Last name is too long"),
+  email: z.string().email("Enter a valid email address"),
+  phone: z
+    .string()
+    .trim()
+    .min(7, "Enter a valid phone number")
+    .max(20, "Phone number is too long")
+    .regex(/^[+0-9()\-\s]+$/, "Enter a valid phone number"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
     .max(128, "Password must be at most 128 characters"),
-  name: z.string().max(80, "Name is too long").optional(),
 });
 
 export const forgotPasswordSchema = z.object({

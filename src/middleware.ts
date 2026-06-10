@@ -33,12 +33,22 @@ export async function middleware(req: NextRequest) {
     secret: process.env.AUTH_SECRET,
   });
   const isLoggedIn = Boolean(token);
+  const onboardingCompleted = Boolean(token?.onboardingCompleted);
   const { pathname } = req.nextUrl;
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isOnboarding = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+
+  if (isLoggedIn && !onboardingCompleted && isProtected) {
+    return NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin));
+  }
+
+  if (isLoggedIn && onboardingCompleted && isOnboarding) {
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+  }
 
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
@@ -46,8 +56,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  if (isOnboarding && !isLoggedIn) {
+    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+  }
+
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    const destination = onboardingCompleted ? "/dashboard" : "/onboarding";
+    return NextResponse.redirect(new URL(destination, req.nextUrl.origin));
   }
 
   return NextResponse.next();
@@ -64,6 +79,8 @@ export const config = {
     "/profile/:path*",
     "/settings/:path*",
     "/admin/:path*",
+    "/onboarding/:path*",
+    "/onboarding",
     "/login",
     "/register",
     "/forgot-password",

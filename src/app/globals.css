@@ -237,3 +237,97 @@ body {
     animation: none;
   }
 }
+
+.auth-layout {
+  position: relative;
+  isolation: isolate;
+}
+
+.auth-shell-title,
+.auth-shell-copy,
+.auth-shell-label {
+  color: oklch(0.98 0.01 90);
+}
+
+.auth-shell-description,
+.auth-shell-hint,
+.auth-shell-footer,
+.auth-shell-kicker {
+  color: oklch(0.88 0.02 90 / 0.92);
+}
+
+.auth-shell-link {
+  color: oklch(0.92 0.08 295);
+}
+
+.auth-shell-card {
+  border-color: oklch(1 0 0 / 0.14);
+  background: oklch(0.16 0.03 285 / 0.72);
+  box-shadow:
+    0 24px 80px oklch(0.1 0.04 285 / 0.45),
+    inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+
+.auth-shell-input {
+  border-color: oklch(1 0 0 / 0.14);
+  background: oklch(0.12 0.03 285 / 0.55);
+  color: oklch(0.98 0.01 90);
+}
+
+.auth-shell-input::placeholder {
+  color: oklch(0.72 0.02 90 / 0.75);
+}
+
+.auth-shell-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  pointer-events: none;
+}
+
+.auth-shell-orb-a {
+  top: -4rem;
+  right: -2rem;
+  width: 10rem;
+  height: 10rem;
+  background: oklch(0.52 0.19 295 / 0.35);
+  animation: float 7s ease-in-out infinite;
+}
+
+.auth-shell-orb-b {
+  bottom: -3rem;
+  left: -2rem;
+  width: 12rem;
+  height: 12rem;
+  background: oklch(0.68 0.17 35 / 0.28);
+  animation: float 8s ease-in-out infinite reverse;
+}
+
+@media (prefers-color-scheme: light) {
+  .auth-shell-title,
+  .auth-shell-copy,
+  .auth-shell-label {
+    color: oklch(0.18 0.04 285);
+  }
+
+  .auth-shell-description,
+  .auth-shell-hint,
+  .auth-shell-footer,
+  .auth-shell-kicker {
+    color: oklch(0.38 0.04 285 / 0.9);
+  }
+
+  .auth-shell-card {
+    border-color: oklch(0.52 0.19 295 / 0.12);
+    background: oklch(1 0.006 90 / 0.82);
+    box-shadow:
+      0 24px 80px oklch(0.52 0.19 295 / 0.12),
+      inset 0 1px 0 oklch(1 0 0 / 0.65);
+  }
+
+  .auth-shell-input {
+    border-color: oklch(0.52 0.19 295 / 0.14);
+    background: oklch(1 0.006 90 / 0.72);
+    color: oklch(0.18 0.04 285);
+  }
+}

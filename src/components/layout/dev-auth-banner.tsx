@@ -7,7 +7,7 @@ export function DevAuthBanner() {
 
   return (
     <div className="border-b border-primary/15 bg-primary/8 px-4 py-1.5 text-center text-xs text-primary">
-      Dev mode — auth disabled
+      Demo mode — auth bypassed
     </div>
   );
 }

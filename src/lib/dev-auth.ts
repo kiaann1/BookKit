@@ -19,6 +19,7 @@ export const devSession: Session = {
     image: null,
     username: "devuser",
     role: UserRole.ADMIN,
+    onboardingCompleted: true,
   },
   expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
 };

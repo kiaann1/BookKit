@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { generateUniqueUsername } from "@/lib/user/username";
 import { registerSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
@@ -16,35 +17,41 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.toLowerCase();
-    const username = parsed.data.username.toLowerCase();
+    const firstName = parsed.data.firstName.trim();
+    const lastName = parsed.data.lastName.trim();
+    const phone = parsed.data.phone.trim();
+    const displayName = `${firstName} ${lastName}`;
 
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
+    const existing = await prisma.user.findUnique({
+      where: { email },
     });
 
     if (existing) {
-      const field = existing.email === email ? "email" : "username";
       return NextResponse.json(
-        { error: { [field]: [`This ${field} is already taken`] } },
+        { error: { email: ["This email is already registered"] } },
         { status: 409 },
       );
     }
 
+    const username = await generateUniqueUsername(firstName, lastName, email);
     const passwordHash = await hash(parsed.data.password, 12);
 
     const user = await prisma.user.create({
       data: {
         email,
         username,
-        name: parsed.data.name?.trim() || null,
+        firstName,
+        lastName,
+        name: displayName,
+        phone,
         passwordHash,
       },
       select: {
         id: true,
         email: true,
         username: true,
+        firstName: true,
+        lastName: true,
       },
     });
 

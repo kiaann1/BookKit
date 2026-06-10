@@ -26,17 +26,25 @@ enum ShelfStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  username      String    @unique
-  passwordHash  String?
-  name          String?
-  bio           String?
-  avatarUrl     String?
-  role          UserRole  @default(READER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  emailVerified         DateTime?
+  username              String    @unique
+  passwordHash          String?
+  firstName             String?
+  lastName              String?
+  name                  String?
+  phone                 String?
+  bio                   String?
+  avatarUrl             String?
+  genrePreferences      String[]  @default([])
+  booksPerWeek          Int?
+  onboardingCompletedAt DateTime?
+  role                  UserRole  @default(READER)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([firstName, lastName])
 
   accounts  Account[]
   sessions  Session[]

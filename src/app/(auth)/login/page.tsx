@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { AuthForm } from "@/components/auth/auth-form";
+import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -8,8 +8,12 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading...</div>}>
-      <AuthForm mode="login" />
+    <Suspense
+      fallback={
+        <div className="auth-shell-copy text-sm">Loading...</div>
+      }
+    >
+      <LoginForm />
     </Suspense>
   );
 }
