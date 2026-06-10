@@ -125,25 +125,6 @@ const DEFAULT_BOOKS: NameBookRecommendation[] = [
   },
 ];
 
-export function buildDisplayNameSuggestions(
-  firstName: string,
-  lastName: string,
-  count: number,
-) {
-  const first = firstName.trim();
-  const last = lastName.trim();
-  const initial = last.charAt(0).toUpperCase();
-  const suggestions = [
-    `${first} ${last}`,
-    `${first} ${initial}.`,
-    `${first}${last.charAt(0).toUpperCase()}${last.slice(1)}`,
-    count > 0 ? `${first} ${last} (${count + 1})` : null,
-    `${first} from BookKit`,
-  ].filter((value): value is string => Boolean(value?.trim()));
-
-  return Array.from(new Set(suggestions));
-}
-
 export function getNameBasedRecommendations(firstName: string, lastName: string) {
   const full = `${firstName} ${lastName}`.trim();
   const matches = NAME_HINTS.filter((hint) => hint.pattern.test(full));

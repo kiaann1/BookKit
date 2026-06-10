@@ -15,11 +15,11 @@ type HomeHeroProps = {
 };
 
 const floatingLayouts = [
-  { rotate: -14, x: -100, y: 8, z: 1, delay: 0, scale: 0.92 },
-  { rotate: 10, x: 55, y: -24, z: 2, delay: 0.12, scale: 1 },
-  { rotate: -5, x: -35, y: 36, z: 3, delay: 0.22, scale: 0.96 },
-  { rotate: 16, x: 85, y: 48, z: 0, delay: 0.08, scale: 0.88 },
-  { rotate: -8, x: 5, y: -48, z: 2, delay: 0.28, scale: 0.94 },
+  { rotate: -14, x: -100, y: 48, z: 1, delay: 0, scale: 0.92 },
+  { rotate: 10, x: 55, y: 16, z: 2, delay: 0.12, scale: 1 },
+  { rotate: -5, x: -35, y: 76, z: 3, delay: 0.22, scale: 0.96 },
+  { rotate: 16, x: 85, y: 88, z: 0, delay: 0.08, scale: 0.88 },
+  { rotate: -8, x: 5, y: -8, z: 2, delay: 0.28, scale: 0.94 },
 ];
 
 function PlaceholderFloatingCard({
@@ -130,17 +130,17 @@ export function HomeHero({
   const floatingCovers = featuredCovers.slice(0, floatingLayouts.length);
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden pt-8 sm:pt-10">
       <div
-        className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+        className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -right-16 top-32 h-64 w-64 rounded-full bg-brand-coral/10 blur-3xl"
+        className="pointer-events-none absolute -right-16 top-44 h-64 w-64 rounded-full bg-brand-coral/10 blur-3xl"
         aria-hidden
       />
 
-      <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center lg:py-24">
+      <div className="mx-auto grid max-w-6xl gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pb-24 lg:pt-16">
         <motion.div
           variants={prefersReducedMotion ? undefined : staggerContainer}
           initial="initial"
@@ -202,7 +202,7 @@ export function HomeHero({
           </motion.div>
         </motion.div>
 
-        <div className="relative mx-auto flex h-80 w-full max-w-md items-center justify-center lg:h-96 lg:max-w-none">
+        <div className="relative mx-auto mt-6 flex h-[22rem] w-full max-w-md items-center justify-center sm:mt-8 lg:mt-0 lg:h-[26rem] lg:max-w-none">
           {!prefersReducedMotion &&
             (floatingCovers.length > 0
               ? floatingCovers.map((cover, index) => (
@@ -242,14 +242,16 @@ export function HomeHero({
             </div>
           )}
 
-          <motion.div
-            className="relative z-10 flex h-24 w-24 items-center justify-center rounded-2xl bg-brand-gradient shadow-xl shadow-primary/30"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease, delay: 0.2 }}
-          >
-            <BookMarked className="h-10 w-10 text-white" />
-          </motion.div>
+          {floatingCovers.length === 0 && (
+            <motion.div
+              className="relative z-10 flex h-24 w-24 items-center justify-center rounded-2xl bg-brand-gradient shadow-xl shadow-primary/30"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease, delay: 0.2 }}
+            >
+              <BookMarked className="h-10 w-10 text-white" />
+            </motion.div>
+          )}
         </div>
       </div>
     </section>

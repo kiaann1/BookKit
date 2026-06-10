@@ -13,6 +13,16 @@ export type BookCoverSource = {
 export async function getBookCoverSource(
   bookId: string,
 ): Promise<BookCoverSource | null> {
+  const storageBook = await getStorageBookById(bookId);
+  if (storageBook?.coverKey) {
+    return {
+      id: storageBook.id,
+      title: storageBook.title,
+      author: storageBook.author,
+      coverKey: storageBook.coverKey,
+    };
+  }
+
   if (await isDatabaseAvailable()) {
     try {
       const book = await prisma.book.findFirst({
@@ -34,11 +44,10 @@ export async function getBookCoverSource(
         return book;
       }
     } catch {
-      // Fall through to storage.
+      // Fall through.
     }
   }
 
-  const storageBook = await getStorageBookById(bookId);
   if (storageBook) {
     return {
       id: storageBook.id,

@@ -1,15 +1,16 @@
 import { getBookCoverSource } from "@/lib/books/cover-source";
 import { resolveExternalCoverUrl } from "@/lib/covers/resolve";
 import { NextResponse } from "next/server";
-import { readFile } from "@/lib/storage";
-import { getS3SignedUrl, isS3Configured } from "@/lib/storage/s3";
+import { getPublicFileUrl, getStorageDriver, readFile } from "@/lib/storage";
+import { getS3SignedUrl } from "@/lib/storage/s3";
 
 type RouteContext = {
   params: Promise<{ bookId: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { bookId } = await context.params;
+  const { bookId: rawBookId } = await context.params;
+  const bookId = decodeURIComponent(rawBookId);
   const book = await getBookCoverSource(bookId);
 
   if (!book) {
@@ -17,10 +18,19 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (book.coverKey) {
-    if (isS3Configured()) {
-      const publicUrl = process.env.S3_PUBLIC_URL
-        ? `${process.env.S3_PUBLIC_URL.replace(/\/$/, "")}/${book.coverKey}`
-        : await getS3SignedUrl(book.coverKey, 3600);
+    const driver = getStorageDriver();
+
+    if (driver === "blob") {
+      const publicUrl = await getPublicFileUrl(book.coverKey);
+      if (publicUrl) {
+        return NextResponse.redirect(publicUrl);
+      }
+    }
+
+    if (driver === "s3") {
+      const publicUrl =
+        (await getPublicFileUrl(book.coverKey)) ??
+        (await getS3SignedUrl(book.coverKey, 3600));
       return NextResponse.redirect(publicUrl);
     }
 

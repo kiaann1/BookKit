@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { prisma } from "@/lib/db";
@@ -14,6 +15,7 @@ export async function GET() {
     select: {
       firstName: true,
       lastName: true,
+      username: true,
       name: true,
       genrePreferences: true,
       booksPerWeek: true,
@@ -51,24 +53,53 @@ export async function PATCH(request: Request) {
     data.displayName?.trim() ||
     [data.firstName, data.lastName].filter(Boolean).join(" ").trim();
 
-  const user = await prisma.user.update({
-    where: { id: auth.userId },
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      name: displayName || undefined,
-      genrePreferences: data.genrePreferences,
-      booksPerWeek: data.booksPerWeek,
-      bio: data.bio?.trim() || null,
-      avatarUrl: data.avatarUrl ?? undefined,
-      onboardingCompletedAt: new Date(),
-    },
-    select: {
-      id: true,
-      name: true,
-      onboardingCompletedAt: true,
-    },
+  const existingUsername = await prisma.user.findUnique({
+    where: { username: data.username },
+    select: { id: true },
   });
 
-  return NextResponse.json({ user });
+  if (existingUsername && existingUsername.id !== auth.userId) {
+    return NextResponse.json(
+      { error: { username: ["That username is already taken."] } },
+      { status: 409 },
+    );
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: auth.userId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        username: data.username,
+        name: displayName || undefined,
+        genrePreferences: data.genrePreferences,
+        booksPerWeek: data.booksPerWeek,
+        bio: data.bio?.trim() || null,
+        avatarUrl:
+          data.avatarUrl === undefined ? undefined : data.avatarUrl,
+        onboardingCompletedAt: new Date(),
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        onboardingCompletedAt: true,
+      },
+    });
+
+    return NextResponse.json({ user });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: { username: ["That username is already taken."] } },
+        { status: 409 },
+      );
+    }
+
+    throw error;
+  }
 }

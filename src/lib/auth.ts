@@ -59,8 +59,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.onboardingCompleted = user.onboardingCompleted ?? false;
       }
 
-      if (trigger === "update" && session?.onboardingCompleted !== undefined) {
-        token.onboardingCompleted = Boolean(session.onboardingCompleted);
+      if (trigger === "update") {
+        if (session?.onboardingCompleted !== undefined) {
+          token.onboardingCompleted = Boolean(session.onboardingCompleted);
+        }
+        if (typeof session?.username === "string") {
+          token.username = session.username;
+        }
       }
 
       return token;

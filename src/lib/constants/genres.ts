@@ -1,20 +1,51 @@
+export const ONBOARDING_GENRE_GROUPS = [
+  {
+    label: "Fiction",
+    genres: [
+      "Literary Fiction",
+      "Contemporary Fiction",
+      "Fantasy",
+      "Sci-Fi",
+      "Romance",
+      "Mystery",
+      "Thriller",
+      "Horror",
+      "Historical Fiction",
+      "Young Adult",
+      "Magical Realism",
+      "Adventure",
+      "Dystopian",
+      "Graphic Novels",
+      "Poetry",
+    ],
+  },
+  {
+    label: "Non-Fiction",
+    genres: [
+      "Biography",
+      "Memoir",
+      "History",
+      "Self-Help",
+      "Science",
+      "True Crime",
+      "Philosophy",
+      "Psychology",
+      "Business",
+      "Health & Wellness",
+      "Politics",
+      "Travel",
+      "Food & Cooking",
+      "Essays",
+      "Religion & Spirituality",
+    ],
+  },
+] as const;
+
+/** All genres valid for books, filters, and onboarding. */
 export const BOOK_GENRES = [
   "Fiction",
   "Non-Fiction",
-  "Fantasy",
-  "Sci-Fi",
-  "Romance",
-  "Mystery",
-  "Thriller",
-  "Horror",
-  "Biography",
-  "History",
-  "Self-Help",
-  "Poetry",
-  "Young Adult",
-  "Literary Fiction",
-  "Memoir",
-  "Essays",
+  ...ONBOARDING_GENRE_GROUPS.flatMap((group) => group.genres),
 ] as const;
 
 export type BookGenre = (typeof BOOK_GENRES)[number];

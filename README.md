@@ -95,7 +95,11 @@ After migrating the database, admins can upload books and everyone can browse th
 
 **Local storage (default):** PDFs and covers save to `./storage` (gitignored). No cloud setup required for dev.
 
-**Production storage:** Set `STORAGE_DRIVER=s3` and configure the S3/R2 variables in `.env.example`.
+**Production storage (Vercel):** Create a **Blob** store in the Vercel project and connect it — `BLOB_READ_WRITE_TOKEN` is injected automatically on deploy. Avatars, covers, and PDFs use it with no extra config.
+
+**Alternative (S3/R2):** Set `STORAGE_DRIVER=s3` plus `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and optional `S3_ENDPOINT` / `S3_PUBLIC_URL`.
+
+**Local dev with Blob:** Run `vercel env pull` after linking the project so `BLOB_READ_WRITE_TOKEN` is in `.env`.
 
 **Promote a real user to admin** (when auth is enabled):
 

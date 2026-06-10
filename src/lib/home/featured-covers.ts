@@ -3,6 +3,7 @@ import path from "path";
 import { parseBookSlug } from "@/lib/books/metadata";
 import { BookStatus } from "@/lib/constants/book-status";
 import { findLocalCoverKey } from "@/lib/covers/ensure-cover";
+import { resolveExternalCoverUrl } from "@/lib/covers/resolve";
 import { prisma } from "@/lib/db";
 
 export type FeaturedCover = {
@@ -19,6 +20,23 @@ function shuffle<T>(items: T[]): T[] {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function coverApiUrl(bookId: string) {
+  return `/api/files/covers/${encodeURIComponent(bookId)}`;
+}
+
+async function resolveCoverUrl(
+  bookId: string,
+  title: string,
+  author: string,
+  coverKey: string | null = null,
+): Promise<string | null> {
+  if (findLocalCoverKey(bookId) || coverKey) {
+    return coverApiUrl(bookId);
+  }
+
+  return resolveExternalCoverUrl(title, author);
 }
 
 async function getStorageCovers(): Promise<FeaturedCover[]> {
@@ -66,7 +84,7 @@ async function getStorageCovers(): Promise<FeaturedCover[]> {
       id: bookId,
       title,
       author: author || "Unknown author",
-      coverUrl: `/api/files/covers/${bookId}`,
+      coverUrl: coverApiUrl(bookId),
     });
   }
 
@@ -80,23 +98,38 @@ async function getDatabaseCovers(): Promise<FeaturedCover[]> {
 
   try {
     const rows = await prisma.book.findMany({
-      where: {
-        status: BookStatus.PUBLISHED,
-        coverKey: { not: null },
-      },
+      where: { status: BookStatus.PUBLISHED },
       select: {
         id: true,
         title: true,
         author: true,
+        coverKey: true,
       },
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      author: row.author,
-      coverUrl: `/api/files/covers/${row.id}`,
-    }));
+    const covers = await Promise.all(
+      rows.map(async (row) => {
+        const coverUrl = await resolveCoverUrl(
+          row.id,
+          row.title,
+          row.author,
+          row.coverKey,
+        );
+
+        if (!coverUrl) {
+          return null;
+        }
+
+        return {
+          id: row.id,
+          title: row.title,
+          author: row.author,
+          coverUrl,
+        };
+      }),
+    );
+
+    return covers.filter((cover): cover is FeaturedCover => cover !== null);
   } catch {
     return [];
   }
@@ -109,7 +142,7 @@ export async function getFeaturedCovers(count = 8): Promise<FeaturedCover[]> {
   ]);
 
   const byId = new Map<string, FeaturedCover>();
-  for (const cover of [...databaseCovers, ...storageCovers]) {
+  for (const cover of [...storageCovers, ...databaseCovers]) {
     byId.set(cover.id, cover);
   }
 

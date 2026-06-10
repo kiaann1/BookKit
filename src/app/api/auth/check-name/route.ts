@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { prisma } from "@/lib/db";
-import {
-  buildDisplayNameSuggestions,
-  getNameBasedRecommendations,
-} from "@/lib/user/name-insights";
+import { getNameBasedRecommendations } from "@/lib/user/name-insights";
+import { buildAvailableUsernameSuggestions } from "@/lib/user/username";
 import { checkNameSchema } from "@/lib/validations/user";
 
 export async function GET(request: Request) {
@@ -18,25 +17,27 @@ export async function GET(request: Request) {
   }
 
   const { firstName, lastName } = parsed.data;
+  const auth = await getAuthenticatedUser();
 
   const matches = await prisma.user.count({
     where: {
       firstName: { equals: firstName, mode: "insensitive" },
       lastName: { equals: lastName, mode: "insensitive" },
+      ...(auth ? { NOT: { id: auth.userId } } : {}),
     },
   });
 
-  const { genres, books } = getNameBasedRecommendations(firstName, lastName);
+  const { genres } = getNameBasedRecommendations(firstName, lastName);
+  const usernameSuggestions = await buildAvailableUsernameSuggestions(
+    firstName,
+    lastName,
+    auth?.userId,
+  );
 
   return NextResponse.json({
     count: matches,
     isTaken: matches > 0,
-    displayNameSuggestions: buildDisplayNameSuggestions(
-      firstName,
-      lastName,
-      matches,
-    ),
+    usernameSuggestions,
     suggestedGenres: genres,
-    bookRecommendations: books,
   });
 }
