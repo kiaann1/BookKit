@@ -1,5 +1,9 @@
 import { ensureBookMetadata } from "@/lib/books/ensure-metadata";
-import { titleToSlug, writeBookMetadata } from "@/lib/books/metadata";
+import {
+  bookSlugWithAuthor,
+  titleToSlug,
+  writeBookMetadata,
+} from "@/lib/books/metadata";
 import { hasStoragePdf } from "@/lib/books/storage-books";
 import { BookStatus } from "@/lib/constants/book-status";
 import { ensureBookCover } from "@/lib/covers/ensure-cover";
@@ -10,7 +14,7 @@ import {
   bookPdfKey,
   coverExtensionFromMime,
 } from "@/lib/storage/keys";
-import { deleteFile, uploadFile } from "@/lib/storage";
+import { deleteFile, fileExists, readFile, uploadFile } from "@/lib/storage";
 import {
   ALLOWED_COVER_TYPES,
   ALLOWED_PDF_TYPES,
@@ -65,8 +69,12 @@ function validateCover(file: File | null) {
   return null;
 }
 
-async function uniqueStorageBookId(title: string) {
-  const base = titleToSlug(title);
+function isValidPdfBuffer(buffer: Buffer) {
+  return buffer.byteLength >= 5 && buffer.subarray(0, 5).toString("utf8") === "%PDF-";
+}
+
+async function uniqueStorageBookId(title: string, author?: string) {
+  const base = author ? bookSlugWithAuthor(title, author) : titleToSlug(title);
   let candidate = base;
   let index = 2;
 
@@ -76,6 +84,24 @@ async function uniqueStorageBookId(title: string) {
   }
 
   return candidate;
+}
+
+async function uniqueDatabaseBookId(title: string, author: string) {
+  const base = bookSlugWithAuthor(title, author);
+  let candidate = base;
+  let index = 2;
+
+  while (true) {
+    const existing = await prisma.book.findUnique({
+      where: { id: candidate },
+      select: { id: true },
+    });
+    if (!existing && !(await fileExists(bookPdfKey(candidate)))) {
+      return candidate;
+    }
+    candidate = `${base}-${index}`;
+    index += 1;
+  }
 }
 
 async function persistUploadedBookFiles(options: {
@@ -103,6 +129,13 @@ async function persistUploadedBookFiles(options: {
     contentType: "application/pdf",
     access: "private",
   });
+
+  const storedPdf = await readFile(pdfKey);
+  if (!storedPdf || !isValidPdfBuffer(storedPdf)) {
+    throw new Error(
+      "PDF did not save correctly to storage. If the file is large, use npm run db:upload-files from your computer instead of the browser upload.",
+    );
+  }
 
   let coverKey: string | null = null;
   if (options.coverFile && options.coverFile.size > 0) {
@@ -183,7 +216,10 @@ async function createStorageBookFromForm(formData: FormData) {
     return { error: { cover: [coverError] } };
   }
 
-  const bookId = await uniqueStorageBookId(metadata.data.title);
+  const bookId = await uniqueStorageBookId(
+    metadata.data.title,
+    metadata.data.author,
+  );
 
   try {
     await persistUploadedBookFiles({
@@ -238,8 +274,14 @@ export async function createBookFromForm(
     return { error: { cover: [coverError] } };
   }
 
+  const bookId = await uniqueDatabaseBookId(
+    metadata.data.title,
+    metadata.data.author,
+  );
+
   const book = await prisma.book.create({
     data: {
+      id: bookId,
       title: metadata.data.title,
       author: metadata.data.author,
       description: metadata.data.description?.trim() || null,
@@ -328,6 +370,12 @@ export async function updateBookFromForm(bookId: string, formData: FormData) {
       contentType: "application/pdf",
       access: "private",
     });
+    const storedPdf = await readFile(pdfKey);
+    if (!storedPdf || !isValidPdfBuffer(storedPdf)) {
+      throw new Error(
+        "PDF did not save correctly to storage. If the file is large, use npm run db:upload-files from your computer instead of the browser upload.",
+      );
+    }
   }
 
   if (coverFile && coverFile.size > 0) {

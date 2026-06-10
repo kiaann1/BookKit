@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
+import { resolveBookId } from "@/lib/books/paths";
 import { getPublishedBookPdfKey } from "@/lib/books/pdf";
 import { pdfRangeFromLocalKey } from "@/lib/files/pdf-range-local";
 import { pdfRangeResponse } from "@/lib/files/pdf-response";
@@ -26,14 +27,14 @@ async function servePdf(pdfKey: string, request: Request) {
   }
 
   if (driver === "blob") {
-    const streamed = await streamBlobForRequest(pdfKey, request);
-    if (streamed) {
-      return streamed;
-    }
-
     const blobFile = await readFile(pdfKey);
     if (blobFile) {
       return pdfRangeResponse(blobFile, request);
+    }
+
+    const streamed = await streamBlobForRequest(pdfKey, request);
+    if (streamed) {
+      return streamed;
     }
   }
 
@@ -57,7 +58,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const { bookId: rawBookId } = await context.params;
-  const bookId = decodeURIComponent(rawBookId);
+  const bookId = resolveBookId(decodeURIComponent(rawBookId));
   const pdfKey = await getPublishedBookPdfKey(bookId);
 
   if (!pdfKey) {

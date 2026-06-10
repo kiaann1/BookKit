@@ -349,24 +349,41 @@ export function PdfReader({
         }
 
         let doc: import("pdfjs-dist").PDFDocumentProxy;
+        const pdfOptions = {
+          ...getPdfJsDocumentOptions(pdfjs.version),
+          disableRange: true,
+          disableStream: true,
+        };
+
         try {
           doc = await pdfjs.getDocument({
             url: pdfUrl,
             withCredentials: true,
-            ...getPdfJsDocumentOptions(pdfjs.version),
+            ...pdfOptions,
           }).promise;
-        } catch {
+        } catch (rangeError) {
           const response = await fetch(pdfUrl, { credentials: "include" });
           if (!response.ok) {
             throw new Error(`PDF fetch failed (${response.status})`);
           }
           const data = await response.arrayBuffer();
-          doc = await pdfjs.getDocument({
-            data,
-            ...getPdfJsDocumentOptions(pdfjs.version),
-            disableRange: true,
-            disableStream: true,
-          }).promise;
+          if (data.byteLength < 5) {
+            throw new Error("storage");
+          }
+          try {
+            doc = await pdfjs.getDocument({
+              data,
+              ...pdfOptions,
+            }).promise;
+          } catch {
+            const hint =
+              rangeError instanceof Error ? rangeError.message : "Invalid PDF";
+            throw new Error(
+              hint.toLowerCase().includes("invalid")
+                ? "storage"
+                : `PDF open failed: ${hint}`,
+            );
+          }
         }
 
         if (cancelled) {
@@ -386,26 +403,34 @@ export function PdfReader({
         if (!cancelled) {
           const message =
             reason instanceof Error ? reason.message.toLowerCase() : "";
+          const rawMessage =
+            reason instanceof Error ? reason.message : "Unknown error";
           const code =
-            reason instanceof Error && reason.message === "storage"
+            rawMessage === "storage"
               ? "storage"
-              : reason instanceof Error && reason.message === "unauthorized"
+              : rawMessage === "unauthorized"
                 ? "unauthorized"
-                : reason instanceof Error && reason.message === "missing"
+                : rawMessage === "missing"
                   ? "missing"
                   : message.includes("(401)")
                     ? "unauthorized"
                     : message.includes("(404)")
                       ? "missing"
-                      : "unknown";
+                      : rawMessage.startsWith("PDF open failed:")
+                        ? "parse"
+                        : message.includes("pdf fetch failed")
+                          ? "fetch"
+                          : "unknown";
           setError(
             code === "storage"
-              ? "This book's PDF is in Blob storage but this server can't read it. On Vercel, add BLOB_READ_WRITE_TOKEN (connect your Blob store to the project) and redeploy."
+              ? "This book's PDF is missing or invalid in storage. Re-upload the PDF from Admin, or use npm run db:upload-files for large files."
               : code === "missing"
                 ? "This book's PDF hasn't been uploaded yet. An admin needs to add the file."
                 : code === "unauthorized"
                   ? "Sign in to read this book."
-                  : "Could not load this book. Try again later.",
+                  : code === "parse" || code === "fetch"
+                    ? rawMessage
+                    : "Could not load this book. Try again later.",
           );
           setIsLoading(false);
         }
