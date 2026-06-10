@@ -22,7 +22,7 @@ const CATALOG_SEED_BOOKS: CatalogSeedBook[] = [
     title: "Hekate",
     author: "Nikita Gill",
     description: null,
-    coverKey: null,
+    coverKey: bookCoverKey("hekate--nikita-gill", "jpg"),
     genres: [] as string[],
     publishedAt: new Date("2025-01-01T00:00:00.000Z"),
   },

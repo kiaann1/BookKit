@@ -1,6 +1,5 @@
 import { getStorageBookById } from "@/lib/books/storage-books";
 import { BookStatus } from "@/lib/constants/book-status";
-import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 
 export type BookCoverSource = {
@@ -9,6 +8,13 @@ export type BookCoverSource = {
   author: string;
   coverKey: string | null;
 };
+
+function canQueryDatabase() {
+  return (
+    Boolean(process.env.DATABASE_URL?.trim()) &&
+    process.env.SKIP_DATABASE !== "true"
+  );
+}
 
 export async function getBookCoverSource(
   bookId: string,
@@ -23,7 +29,7 @@ export async function getBookCoverSource(
     };
   }
 
-  if (await isDatabaseAvailable()) {
+  if (canQueryDatabase()) {
     try {
       const book = await prisma.book.findFirst({
         where: {
@@ -43,8 +49,8 @@ export async function getBookCoverSource(
       if (book) {
         return book;
       }
-    } catch {
-      // Fall through.
+    } catch (error) {
+      console.error("[covers] Failed to load book cover source:", bookId, error);
     }
   }
 

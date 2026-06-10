@@ -384,6 +384,18 @@ async function uploadAllBookFiles(books: LocalBook[], skipExisting: boolean) {
   console.log(
     "Book metadata must already exist in Neon (e.g. scripts/seed-books.sql).",
   );
+
+  const coverUpdates = books.filter((book) => book.coverKey);
+  if (coverUpdates.length > 0) {
+    console.log(
+      "\nIf a cover was added after the initial seed, run in Neon SQL Editor:",
+    );
+    for (const book of coverUpdates) {
+      console.log(
+        `UPDATE "Book" SET "coverKey" = '${book.coverKey}' WHERE "id" = '${book.id}';`,
+      );
+    }
+  }
 }
 
 async function syncWithPrisma(books: LocalBook[], uploadFiles: boolean) {

@@ -1,5 +1,7 @@
 import { getBookCoverSource } from "@/lib/books/cover-source";
+import { imageBytesResponse, imageContentType } from "@/lib/files/image-response";
 import { resolveExternalCoverUrl } from "@/lib/covers/resolve";
+import { resolveStoredCoverKey } from "@/lib/covers/stored-cover-key";
 import { NextResponse } from "next/server";
 import { getPublicFileUrl, getStorageDriver, readFile } from "@/lib/storage";
 import { getS3SignedUrl } from "@/lib/storage/s3";
@@ -14,11 +16,21 @@ async function serveStoredCover(coverKey: string) {
   const driver = getStorageDriver();
 
   if (driver === "blob") {
-    const publicUrl = await getPublicFileUrl(coverKey);
-    if (publicUrl) {
-      return NextResponse.redirect(publicUrl);
+    if (process.env.BLOB_STORE_ACCESS === "public") {
+      const publicUrl = await getPublicFileUrl(coverKey);
+      if (publicUrl) {
+        return NextResponse.redirect(publicUrl);
+      }
     }
-    return null;
+
+    const file = await readFile(coverKey);
+    if (!file) {
+      return null;
+    }
+
+    return imageBytesResponse(file, {
+      contentType: imageContentType(coverKey),
+    });
   }
 
   if (driver === "s3") {
@@ -36,19 +48,8 @@ async function serveStoredCover(coverKey: string) {
     return null;
   }
 
-  const extension = coverKey.split(".").pop();
-  const contentType =
-    extension === "png"
-      ? "image/png"
-      : extension === "webp"
-        ? "image/webp"
-        : "image/jpeg";
-
-  return new NextResponse(new Uint8Array(file), {
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400, immutable",
-    },
+  return imageBytesResponse(file, {
+    contentType: imageContentType(coverKey),
   });
 }
 
@@ -73,12 +74,10 @@ async function serveExternalCover(title: string, author: string) {
   }
 
   const bytes = await imageResponse.arrayBuffer();
-  return new NextResponse(bytes, {
-    headers: {
-      "Content-Type":
-        imageResponse.headers.get("content-type") ?? "image/jpeg",
-      "Cache-Control": "public, max-age=86400",
-    },
+  return imageBytesResponse(new Uint8Array(bytes), {
+    contentType:
+      imageResponse.headers.get("content-type") ?? "image/jpeg",
+    cacheControl: "public, max-age=86400",
   });
 }
 
@@ -91,8 +90,9 @@ export async function GET(_request: Request, context: RouteContext) {
     return new NextResponse(null, { status: 404 });
   }
 
-  if (book.coverKey) {
-    const stored = await serveStoredCover(book.coverKey);
+  const coverKey = await resolveStoredCoverKey(book.id, book.coverKey);
+  if (coverKey) {
+    const stored = await serveStoredCover(coverKey);
     if (stored) {
       return stored;
     }
