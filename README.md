@@ -86,18 +86,36 @@ The PDF lives at `storage/books/the-poppy-war/original.pdf` (gitignored).
 
 ## Phase 1 — Catalog & admin upload
 
-After migrating the database, admins can upload books and everyone can browse the catalog.
+**Exit criteria:** An admin can upload a PDF; any logged-in user can browse the catalog and view book details.
 
-1. Run migrations: `npm run db:migrate`
-2. With `DISABLE_AUTH=true`, you're a mock admin — open **Admin → Upload book**
-3. Upload a PDF (+ optional cover), fill metadata, set status to **Published**
-4. Browse **Catalog** and open the book detail page
+### Local setup
+
+1. Copy `.env.example` → `.env.local` and set `DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`
+2. Run migrations: `npm run db:migrate`
+3. With `DISABLE_AUTH=true`, open **Admin → Manage books**
+4. **Seed default catalog** (8 books) or **Upload book** with a PDF (+ optional cover)
+5. Browse **Catalog** and open a book detail page
+6. Verify: `npm run verify:phase1`
 
 **Local storage (default):** PDFs and covers save to `./storage` (gitignored). No cloud setup required for dev.
 
-**Production storage (Vercel):** Create a **Blob** store in the Vercel project and connect it — `BLOB_READ_WRITE_TOKEN` is injected automatically on deploy. Avatars, covers, and PDFs use it with no extra config.
+### Production (Vercel + Neon + Blob)
 
-**Alternative (S3/R2):** Set `STORAGE_DRIVER=s3` plus `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and optional `S3_ENDPOINT` / `S3_PUBLIC_URL`.
+1. Set env vars: `DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL` — do **not** set `SKIP_DATABASE` or `STORAGE_DRIVER=local`
+2. Connect a **Blob** store to the Vercel project (`BLOB_READ_WRITE_TOKEN` is injected on deploy)
+3. Run `scripts/seed-books.sql` in the Neon SQL Editor (or **Admin → Seed default catalog**)
+4. Upload PDFs/covers from your machine: `npm run db:upload-files` (use `--skip-existing` to resume)
+5. Promote your account to admin (see below), redeploy, then check **Admin → Manage books** for the Phase 1 readiness panel
+6. Verify deployment: `npm run verify:phase1 -- --url https://your-app.vercel.app`
+
+| Command | Description |
+|---------|-------------|
+| `npm run verify:phase1` | Check database, storage, and catalog locally |
+| `npm run db:upload-files` | Upload `./storage/books` PDFs/covers to Blob |
+| `npm run db:backfill-cover-keys` | Sync `coverKey` in Postgres from local cover files |
+| `GET /api/health/phase1` | JSON readiness report (catalog + storage) |
+
+**Alternative storage (S3/R2):** Set `STORAGE_DRIVER=s3` plus `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and optional `S3_ENDPOINT` / `S3_PUBLIC_URL`.
 
 **Local dev with Blob:** Run `vercel env pull` after linking the project so `BLOB_READ_WRITE_TOKEN` is in `.env`.
 

@@ -2,7 +2,7 @@
 
 > A bookish social reading platform combining a personal bookshelf, in-browser reading, recommendations, and community features — inspired by Fable, Goodreads, and Kindle.
 
-**Status:** Planning  
+**Status:** Phase 1 complete (catalog & admin upload) — Phase 2+ in progress  
 **Initial platform:** Web (responsive)  
 **Future platform:** Native mobile app (iOS / Android)
 
@@ -232,12 +232,12 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 **Goal:** Repo, auth, deploy pipeline, empty shell.
 
-- [ ] Initialize monorepo or single Next.js app with TypeScript
-- [ ] Set up PostgreSQL + migrations (Prisma or Drizzle)
-- [ ] Implement auth: sign up, login, logout, password resetss
-- [ ] Basic layout: nav, responsive shell, placeholder pages
-- [ ] CI/CD: lint, test, deploy to staging (Vercel + managed DB)
-- [ ] Environment variables documented (`.env.example`)
+- [x] Initialize monorepo or single Next.js app with TypeScript
+- [x] Set up PostgreSQL + migrations (Prisma or Drizzle)
+- [x] Implement auth: sign up, login, logout, password reset
+- [x] Basic layout: nav, responsive shell, placeholder pages
+- [x] CI/CD: lint, test, deploy to staging (Vercel + managed DB)
+- [x] Environment variables documented (`.env.example`)
 
 **Exit criteria:** A user can register, log in, and see a protected dashboard.
 
@@ -247,13 +247,15 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 **Goal:** Books exist in the system and admins can manage them.
 
-- [ ] Blob storage bucket + IAM (private PDFs, public covers)
-- [ ] Admin role + admin-only upload UI
-- [ ] Book CRUD: title, author, description, genres, cover, PDF
-- [ ] Public catalog page: grid, search, genre filter
-- [ ] Book detail page (metadata only — no reader yet)
+- [x] Blob storage bucket + IAM (private PDFs, public covers)
+- [x] Admin role + admin-only upload UI
+- [x] Book CRUD: title, author, description, genres, cover, PDF
+- [x] Public catalog page: grid, search, genre filter
+- [x] Book detail page (metadata; reader added in Phase 3)
 
 **Exit criteria:** Admin uploads a PDF; any logged-in user can browse and view book details.
+
+**Verify:** `npm run verify:phase1` locally or `GET /api/health/phase1` on deploy. Admin → Manage books shows a Phase 1 readiness panel.
 
 ---
 
@@ -584,6 +586,7 @@ Track these as you build — resolve before or during the relevant phase.
 | Date | Change |
 |------|--------|
 | 2026-06-10 | Initial specification and roadmap |
+| 2026-06-10 | Phase 0–1 marked complete; added `.env.example`, `/api/health/phase1`, `verify:phase1` |
 
 ---
 

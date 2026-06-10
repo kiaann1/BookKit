@@ -15,6 +15,8 @@
     "db:sync-books": "npx tsx scripts/sync-storage-to-db.ts",
     "db:sync-books:sql": "npx tsx scripts/sync-storage-to-db.ts --sql --out scripts/seed-books.sql",
     "db:upload-files": "npx tsx scripts/sync-storage-to-db.ts --files-only",
+    "db:backfill-cover-keys": "npx tsx scripts/sync-storage-to-db.ts --backfill-cover-keys",
+    "verify:phase1": "npx tsx scripts/verify-phase1.ts",
     "postinstall": "node scripts/copy-pdf-worker.mjs"
   },
   "prisma": {

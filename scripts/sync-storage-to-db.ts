@@ -8,6 +8,7 @@
  *   npx tsx scripts/sync-storage-to-db.ts --upload-files       # DB sync + upload (falls back to files-only if DB unreachable)
  *   npx tsx scripts/sync-storage-to-db.ts --files-only         # upload only (use this on networks that block Neon)
  *   npx tsx scripts/sync-storage-to-db.ts --files-only --skip-existing   # skip files already in Blob/S3
+ *   npx tsx scripts/sync-storage-to-db.ts --backfill-cover-keys            # update coverKey in Postgres from local covers
  *
  * Requires DATABASE_URL in .env for DB sync (not needed with --files-only).
  * For uploads, set BLOB_READ_WRITE_TOKEN (Vercel Blob) or S3_* env vars in .env.
@@ -356,6 +357,47 @@ async function uploadBookFiles(
   }
 }
 
+async function backfillCoverKeysInDatabase(books: LocalBook[]) {
+  if (!process.env.DATABASE_URL?.trim()) {
+    return;
+  }
+
+  const prisma = createScriptPrismaClient();
+
+  try {
+    let updated = 0;
+
+    for (const book of books) {
+      if (!book.coverKey) {
+        continue;
+      }
+
+      const result = await withTimeout(
+        prisma.book.updateMany({
+          where: {
+            id: book.id,
+            OR: [{ coverKey: null }, { coverKey: { not: book.coverKey } }],
+          },
+          data: { coverKey: book.coverKey },
+        }),
+        DB_LOOKUP_TIMEOUT_MS,
+        `coverKey backfill for ${book.id}`,
+      );
+
+      updated += result.count;
+    }
+
+    if (updated > 0) {
+      console.log(`\nUpdated coverKey for ${updated} book(s) in the database.`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`\nCould not backfill cover keys in database: ${message}`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function uploadAllBookFiles(books: LocalBook[], skipExisting: boolean) {
   if (!isRemoteStorageConfigured()) {
     console.error(
@@ -385,17 +427,7 @@ async function uploadAllBookFiles(books: LocalBook[], skipExisting: boolean) {
     "Book metadata must already exist in Neon (e.g. scripts/seed-books.sql).",
   );
 
-  const coverUpdates = books.filter((book) => book.coverKey);
-  if (coverUpdates.length > 0) {
-    console.log(
-      "\nIf a cover was added after the initial seed, run in Neon SQL Editor:",
-    );
-    for (const book of coverUpdates) {
-      console.log(
-        `UPDATE "Book" SET "coverKey" = '${book.coverKey}' WHERE "id" = '${book.id}';`,
-      );
-    }
-  }
+  await backfillCoverKeysInDatabase(books);
 }
 
 async function syncWithPrisma(books: LocalBook[], uploadFiles: boolean) {
@@ -476,6 +508,7 @@ async function main() {
   const outIndex = process.argv.indexOf("--out");
   const outPath = outIndex >= 0 ? process.argv[outIndex + 1] : null;
   const filesOnly = process.argv.includes("--files-only");
+  const backfillOnly = process.argv.includes("--backfill-cover-keys");
   const skipExisting = process.argv.includes("--skip-existing");
   const uploadFiles =
     filesOnly ||
@@ -491,6 +524,11 @@ async function main() {
     } else {
       console.log(sql);
     }
+    return;
+  }
+
+  if (backfillOnly) {
+    await backfillCoverKeysInDatabase(books);
     return;
   }
 

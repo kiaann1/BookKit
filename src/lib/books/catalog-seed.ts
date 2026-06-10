@@ -174,3 +174,6 @@ export async function seedCatalogBooks() {
 
   return { upserted, total: CATALOG_SEED_BOOKS.length };
 }
+
+/** Number of books in the default seed catalog (used for Phase 1 health checks). */
+export const CATALOG_SEED_BOOK_COUNT = CATALOG_SEED_BOOKS.length;

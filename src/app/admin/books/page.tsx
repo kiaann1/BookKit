@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookStatus } from "@/lib/constants/book-status";
 import { DeleteBookButton } from "@/components/admin/delete-book-button";
+import { Phase1Status } from "@/components/admin/phase1-status";
 import { SeedCatalogButton } from "@/components/admin/seed-catalog-button";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
@@ -45,6 +46,8 @@ export default async function AdminBooksPage() {
           </Button>
         </Link>
       </div>
+
+      <Phase1Status />
 
       {books.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/5 px-6 py-16 text-center">

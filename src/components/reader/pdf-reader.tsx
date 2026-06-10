@@ -32,9 +32,43 @@ type PdfReaderProps = {
 const SAVE_DEBOUNCE_MS = 2000;
 const FOCUS_CHROME_HIDE_MS = 2500;
 const PAGE_CACHE_LIMIT = 8;
+const MAX_OUTPUT_SCALE = 2.5;
 
-function pageCacheKey(page: number, renderScale: number, width: number) {
-  return `${page}:${renderScale.toFixed(3)}:${width}`;
+function getOutputScale() {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  return Math.min(window.devicePixelRatio || 1, MAX_OUTPUT_SCALE);
+}
+
+function pageCacheKey(
+  page: number,
+  renderScale: number,
+  width: number,
+  outputScale: number,
+) {
+  return `${page}:${renderScale.toFixed(3)}:${width}:${outputScale.toFixed(2)}`;
+}
+
+function getPageRenderLayout(
+  page: import("pdfjs-dist").PDFPageProxy,
+  renderScale: number,
+  outputScale: number,
+) {
+  const viewport = page.getViewport({ scale: renderScale });
+
+  return {
+    viewport,
+    pixelWidth: Math.floor(viewport.width * outputScale),
+    pixelHeight: Math.floor(viewport.height * outputScale),
+    cssWidth: viewport.width,
+    cssHeight: viewport.height,
+    transform:
+      outputScale !== 1
+        ? [outputScale, 0, 0, outputScale, 0, 0]
+        : undefined,
+  };
 }
 
 function storePageBitmap(
@@ -82,7 +116,7 @@ export function PdfReader({
 
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.15);
+  const [scale, setScale] = useState(1.35);
   const [manualScale, setManualScale] = useState<number | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -408,7 +442,8 @@ export function PdfReader({
         );
       }
 
-      const viewport = page.getViewport({ scale: renderScale });
+      const outputScale = getOutputScale();
+      const layout = getPageRenderLayout(page, renderScale, outputScale);
       const context = canvas.getContext("2d");
       if (!context) {
         return;
@@ -418,13 +453,14 @@ export function PdfReader({
         currentPage,
         renderScale,
         isMobile ? containerWidth : 0,
+        outputScale,
       );
       const cachedBitmap = pageBitmapCacheRef.current.get(cacheKey);
       if (cachedBitmap) {
         canvas.width = cachedBitmap.width;
         canvas.height = cachedBitmap.height;
-        canvas.style.width = `${cachedBitmap.width}px`;
-        canvas.style.height = `${cachedBitmap.height}px`;
+        canvas.style.width = `${layout.cssWidth}px`;
+        canvas.style.height = `${layout.cssHeight}px`;
         context.drawImage(cachedBitmap, 0, 0);
         queueSave(currentPage, totalPages);
         return;
@@ -436,8 +472,8 @@ export function PdfReader({
         offscreenCanvasRef.current = offscreen;
       }
 
-      offscreen.width = viewport.width;
-      offscreen.height = viewport.height;
+      offscreen.width = layout.pixelWidth;
+      offscreen.height = layout.pixelHeight;
 
       const offscreenContext = offscreen.getContext("2d");
       if (!offscreenContext) {
@@ -449,7 +485,8 @@ export function PdfReader({
 
       const task = page.render({
         canvasContext: offscreenContext,
-        viewport,
+        viewport: layout.viewport,
+        transform: layout.transform,
         canvas: offscreen,
       });
       renderTaskRef.current = task;
@@ -472,10 +509,10 @@ export function PdfReader({
 
       renderTaskRef.current = null;
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      canvas.width = layout.pixelWidth;
+      canvas.height = layout.pixelHeight;
+      canvas.style.width = `${layout.cssWidth}px`;
+      canvas.style.height = `${layout.cssHeight}px`;
       context.drawImage(offscreen, 0, 0);
 
       if (typeof createImageBitmap === "function") {
