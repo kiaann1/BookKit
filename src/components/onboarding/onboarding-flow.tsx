@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, Sparkles, UserRound } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
@@ -62,7 +61,6 @@ const stepMeta: Record<
 };
 
 export function OnboardingFlow() {
-  const router = useRouter();
   const { data: session, update } = useSession();
   const [step, setStep] = useState<Step>("welcome");
   const [loading, setLoading] = useState(true);
@@ -202,8 +200,7 @@ export function OnboardingFlow() {
       }
 
       await update({ onboardingCompleted: true });
-      router.push("/dashboard");
-      router.refresh();
+      window.location.assign("/dashboard");
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Something went wrong.",

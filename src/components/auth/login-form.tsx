@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { staggerContainer } from "@/lib/motion";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
@@ -38,8 +37,7 @@ export function LoginForm() {
         return;
       }
 
-      router.push(callbackUrl);
-      router.refresh();
+      window.location.assign(callbackUrl);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

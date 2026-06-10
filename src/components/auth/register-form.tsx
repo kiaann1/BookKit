@@ -99,12 +99,15 @@ export function RegisterForm() {
       });
 
       if (signInResult?.error) {
+        setError(
+          "Account created, but we couldn't sign you in automatically. Please sign in below.",
+        );
         router.push("/login");
         return;
       }
 
-      router.push("/onboarding");
-      router.refresh();
+      // Full navigation so the session cookie is present before middleware runs.
+      window.location.assign("/onboarding");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
