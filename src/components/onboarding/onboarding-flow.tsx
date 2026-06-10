@@ -17,6 +17,7 @@ import {
   getReadingFrequencyLabel,
   normalizeReadingFrequency,
   READING_FREQUENCY_OPTIONS,
+  type ReadingFrequency,
 } from "@/lib/constants/reading-pace";
 import { ease } from "@/lib/motion";
 import { USERNAME_PATTERN } from "@/lib/user/username";
@@ -80,7 +81,9 @@ export function OnboardingFlow() {
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [nameInsights, setNameInsights] = useState<NameInsights | null>(null);
   const [genres, setGenres] = useState<string[]>([]);
-  const [booksPerWeek, setBooksPerWeek] = useState(DEFAULT_READING_FREQUENCY);
+  const [booksPerWeek, setBooksPerWeek] = useState<ReadingFrequency>(
+    DEFAULT_READING_FREQUENCY,
+  );
   const [bio, setBio] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);

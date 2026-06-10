@@ -19,13 +19,18 @@ export const READING_FREQUENCY_OPTIONS = [
   },
 ] as const;
 
+export type ReadingFrequency =
+  (typeof READING_FREQUENCY_OPTIONS)[number]["value"];
+
 /** @deprecated Use READING_FREQUENCY_OPTIONS */
 export const BOOKS_PER_WEEK_OPTIONS = READING_FREQUENCY_OPTIONS;
 
-export const DEFAULT_READING_FREQUENCY =
+export const DEFAULT_READING_FREQUENCY: ReadingFrequency =
   READING_FREQUENCY_OPTIONS[1].value;
 
-const frequencyValues = READING_FREQUENCY_OPTIONS.map((option) => option.value);
+const frequencyValues: ReadingFrequency[] = READING_FREQUENCY_OPTIONS.map(
+  (option) => option.value,
+);
 
 export function getReadingFrequencyLabel(value: number | null | undefined) {
   const normalized = normalizeReadingFrequency(value);
@@ -35,13 +40,15 @@ export function getReadingFrequencyLabel(value: number | null | undefined) {
   );
 }
 
-export function normalizeReadingFrequency(value: number | null | undefined) {
+export function normalizeReadingFrequency(
+  value: number | null | undefined,
+): ReadingFrequency {
   if (value == null) {
     return DEFAULT_READING_FREQUENCY;
   }
 
-  if (frequencyValues.includes(value as (typeof frequencyValues)[number])) {
-    return value;
+  if (frequencyValues.includes(value as ReadingFrequency)) {
+    return value as ReadingFrequency;
   }
 
   return frequencyValues.reduce((closest, candidate) =>
