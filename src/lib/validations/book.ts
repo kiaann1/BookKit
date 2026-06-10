@@ -5,7 +5,7 @@ export const bookMetadataSchema = z.object({
   title: z.string().min(1, "Title is required").max(300),
   author: z.string().min(1, "Author is required").max(200),
   description: z.string().max(5000).optional(),
-  genres: z.array(z.string().min(1).max(50)).min(1, "Select at least one genre"),
+  genres: z.array(z.string().min(1).max(50)).default([]),
   publishedAt: z
     .preprocess(
       (value) => (value === "" || value === undefined || value === null ? undefined : value),

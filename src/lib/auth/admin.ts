@@ -1,5 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { resolveAdminRole } from "@/lib/auth/admin-role";
 import { getSession } from "@/lib/session";
 
 export async function requireAdmin() {
@@ -9,7 +10,8 @@ export async function requireAdmin() {
     redirect("/login?callbackUrl=/admin/books");
   }
 
-  if (session.user.role !== UserRole.ADMIN) {
+  const role = await resolveAdminRole(session.user.id, session.user.role);
+  if (role !== UserRole.ADMIN) {
     redirect("/dashboard");
   }
 
@@ -18,5 +20,10 @@ export async function requireAdmin() {
 
 export async function isAdmin() {
   const session = await getSession();
-  return session?.user?.role === UserRole.ADMIN;
+  if (!session?.user) {
+    return false;
+  }
+
+  const role = await resolveAdminRole(session.user.id, session.user.role);
+  return role === UserRole.ADMIN;
 }

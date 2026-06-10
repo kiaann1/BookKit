@@ -1,13 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { assertAdminApi } from "@/lib/auth/admin-api";
 import { seedCatalogBooks } from "@/lib/books/catalog-seed";
-import { getAuthenticatedUser } from "@/lib/auth/session-user";
 
 export async function POST() {
-  const auth = await getAuthenticatedUser();
-  if (!auth || auth.session.user.role !== UserRole.ADMIN) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await assertAdminApi();
+  if ("error" in auth) {
+    return auth.error;
   }
 
   try {

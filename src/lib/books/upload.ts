@@ -92,6 +92,8 @@ async function persistUploadedBookFiles(options: {
   };
   pdfFile: File;
   coverFile: File | null;
+  /** When true, metadata lives in Postgres only (skip local/Blob sidecar JSON). */
+  skipSidecarMetadata?: boolean;
 }) {
   const pdfBuffer = Buffer.from(await options.pdfFile.arrayBuffer());
   const pdfKey = bookPdfKey(options.bookId);
@@ -118,26 +120,34 @@ async function persistUploadedBookFiles(options: {
     });
   }
 
-  await writeBookMetadata(options.bookId, {
-    title: options.metadata.title,
-    author: options.metadata.author,
-    description: options.metadata.description,
-    genres: options.metadata.genres,
-    publishedAt: options.metadata.publishedAt,
-    seriesTitle: options.metadata.seriesTitle,
-    seriesIndex: options.metadata.seriesIndex,
-    status: options.metadata.status,
-  });
+  if (!options.skipSidecarMetadata) {
+    await writeBookMetadata(options.bookId, {
+      title: options.metadata.title,
+      author: options.metadata.author,
+      description: options.metadata.description,
+      genres: options.metadata.genres,
+      publishedAt: options.metadata.publishedAt,
+      seriesTitle: options.metadata.seriesTitle,
+      seriesIndex: options.metadata.seriesIndex,
+      status: options.metadata.status,
+    });
 
-  const enriched = await ensureBookMetadata(options.bookId);
-  const lookupTitle = enriched.title ?? options.metadata.title;
-  const lookupAuthor = enriched.author ?? options.metadata.author;
+    const enriched = await ensureBookMetadata(options.bookId);
+    const lookupTitle = enriched.title ?? options.metadata.title;
+    const lookupAuthor = enriched.author ?? options.metadata.author;
 
-  if (!coverKey) {
+    if (!coverKey) {
+      coverKey = await ensureBookCover(
+        options.bookId,
+        lookupTitle,
+        lookupAuthor ?? "",
+      );
+    }
+  } else if (!coverKey) {
     coverKey = await ensureBookCover(
       options.bookId,
-      lookupTitle,
-      lookupAuthor ?? "",
+      options.metadata.title,
+      options.metadata.author ?? "",
     );
   }
 
@@ -251,6 +261,7 @@ export async function createBookFromForm(
       metadata: metadata.data,
       pdfFile: pdfFile!,
       coverFile,
+      skipSidecarMetadata: true,
     });
 
     const updated = await prisma.book.update({

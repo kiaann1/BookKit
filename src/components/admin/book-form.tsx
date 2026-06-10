@@ -87,15 +87,19 @@ export function BookForm({ mode, bookId, initialValues }: BookFormProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        const message =
+        const fieldError =
           data.error?.title?.[0] ??
           data.error?.author?.[0] ??
           data.error?.genres?.[0] ??
           data.error?.pdf?.[0] ??
-          data.error?.cover?.[0] ??
-          data.error ??
+          data.error?.cover?.[0];
+
+        const message =
+          fieldError ??
+          (typeof data.error === "string" ? data.error : null) ??
           "Something went wrong";
-        setError(typeof message === "string" ? message : "Something went wrong");
+
+        setError(message);
         return;
       }
 

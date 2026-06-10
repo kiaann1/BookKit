@@ -1,7 +1,9 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile } from "fs/promises";
 import path from "path";
 import { z } from "zod";
 import { BookStatus } from "@/lib/constants/book-status";
+import { readFile as readStoredFile, uploadFile } from "@/lib/storage";
+import { getStorageDriver } from "@/lib/storage/driver";
 import { uploadLocal } from "@/lib/storage/local";
 
 export const storageBookMetadataSchema = z.object({
@@ -30,6 +32,23 @@ function metadataPath(bookId: string) {
 export async function readBookMetadata(
   bookId: string,
 ): Promise<StorageBookMetadata | null> {
+  const key = bookMetadataKey(bookId);
+
+  if (getStorageDriver() !== "local") {
+    const bytes = await readStoredFile(key);
+    if (!bytes) {
+      return null;
+    }
+    try {
+      const parsed = storageBookMetadataSchema.safeParse(
+        JSON.parse(bytes.toString("utf-8")),
+      );
+      return parsed.success ? parsed.data : null;
+    } catch {
+      return null;
+    }
+  }
+
   try {
     const raw = await readFile(metadataPath(bookId), "utf-8");
     const parsed = storageBookMetadataSchema.safeParse(JSON.parse(raw));
@@ -45,7 +64,19 @@ export async function writeBookMetadata(
 ) {
   const parsed = storageBookMetadataSchema.parse(metadata);
   const body = Buffer.from(JSON.stringify(parsed, null, 2), "utf-8");
-  await uploadLocal(bookMetadataKey(bookId), body);
+  const key = bookMetadataKey(bookId);
+
+  if (getStorageDriver() === "local") {
+    await uploadLocal(key, body);
+    return;
+  }
+
+  await uploadFile({
+    key,
+    body,
+    contentType: "application/json",
+    access: "private",
+  });
 }
 
 export function slugToTitle(slug: string) {

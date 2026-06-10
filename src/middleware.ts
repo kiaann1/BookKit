@@ -1,4 +1,3 @@
-import { UserRole } from "@prisma/client";
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -52,12 +51,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
-  const isAdminRoute =
-    pathname === "/admin" || pathname.startsWith("/admin/");
-
-  if (isAdminRoute && isLoggedIn && token?.role !== UserRole.ADMIN) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
-  }
+  // Admin role is enforced in app/admin/layout (requireAdmin) with a fresh DB
+  // session. Do not check role here — JWT in middleware can be stale after promotion.
 
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
@@ -87,6 +82,7 @@ export const config = {
     "/requests/:path*",
     "/profile/:path*",
     "/settings/:path*",
+    "/admin",
     "/admin/:path*",
     "/onboarding/:path*",
     "/onboarding",

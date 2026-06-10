@@ -1,20 +1,29 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { assertAdminApi } from "@/lib/auth/admin-api";
 import {
   deleteBookAndFiles,
   updateBookFromForm,
 } from "@/lib/books/upload";
-import { getSession } from "@/lib/session";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function PATCH(request: Request, context: RouteContext) {
-  const session = await getSession();
+function uploadErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Failed to update book";
+  }
+  return error.message || "Failed to update book";
+}
 
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export async function PATCH(request: Request, context: RouteContext) {
+  const auth = await assertAdminApi();
+  if ("error" in auth) {
+    return auth.error;
   }
 
   const { id } = await context.params;
@@ -31,20 +40,24 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    revalidatePath("/catalog");
+    revalidatePath("/admin/books");
+    revalidatePath(`/catalog/${id}`);
+
     return NextResponse.json({ book: { id: result.book!.id } });
-  } catch {
+  } catch (error) {
+    console.error("[admin/books] update failed:", error);
     return NextResponse.json(
-      { error: "Failed to update book" },
+      { error: uploadErrorMessage(error) },
       { status: 500 },
     );
   }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const session = await getSession();
-
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const auth = await assertAdminApi();
+  if ("error" in auth) {
+    return auth.error;
   }
 
   const { id } = await context.params;
@@ -53,6 +66,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (!deleted) {
     return NextResponse.json({ error: "Book not found" }, { status: 404 });
   }
+
+  revalidatePath("/catalog");
+  revalidatePath("/admin/books");
 
   return NextResponse.json({ success: true });
 }
