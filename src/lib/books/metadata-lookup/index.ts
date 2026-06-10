@@ -54,7 +54,11 @@ export async function lookupBookMetadata(
   }
 
   if (!merged.author && googleBooks?.author && openLibrary) {
-    merged = mergeMetadata(openLibrary, googleBooks);
+    merged = mergeMetadata(openLibrary, googleBooks) ?? merged;
+  }
+
+  if (!merged) {
+    return null;
   }
 
   if (!merged.genres?.length && googleBooks?.genres?.length && openLibrary) {

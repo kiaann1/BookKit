@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "node --use-system-ca ./node_modules/next/dist/bin/next dev --turbopack",
-    "build": "prisma generate && node --use-system-ca ./node_modules/next/dist/bin/next build",
-    "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
+    "build": "prisma generate && next build",
+    "start": "next start",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
