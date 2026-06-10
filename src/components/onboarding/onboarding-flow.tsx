@@ -19,6 +19,7 @@ import {
   READING_FREQUENCY_OPTIONS,
   type ReadingFrequency,
 } from "@/lib/constants/reading-pace";
+import { prepareAvatarForUpload } from "@/lib/images/prepare-avatar";
 import { ease } from "@/lib/motion";
 import { USERNAME_PATTERN } from "@/lib/user/username";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,7 @@ export function OnboardingFlow() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarRemoved, setAvatarRemoved] = useState(false);
+  const [avatarProcessing, setAvatarProcessing] = useState(false);
   const [finalePhase, setFinalePhase] = useState<"loading" | "reveal" | null>(
     null,
   );
@@ -496,7 +498,12 @@ export function OnboardingFlow() {
           {step === "profile" ? (
             <div className="space-y-5">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                <label className="group relative flex h-28 w-28 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-white/20 bg-white/5 transition hover:border-primary/40">
+                <label
+                  className={cn(
+                    "group relative flex h-28 w-28 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-white/20 bg-white/5 transition hover:border-primary/40",
+                    avatarProcessing && "pointer-events-none opacity-70",
+                  )}
+                >
                   {avatarPreview ? (
                     <Image
                       src={avatarPreview}
@@ -509,24 +516,46 @@ export function OnboardingFlow() {
                     <UserRound className="h-10 w-10 text-white/50" />
                   )}
                   <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-                    {avatarPreview ? "Change" : "Add photo"}
+                    {avatarProcessing
+                      ? "Resizing…"
+                      : avatarPreview
+                        ? "Change"
+                        : "Add photo"}
                   </span>
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    accept="image/jpeg,image/png,image/webp,image/jpg,image/heic,image/heif"
                     className="hidden"
+                    disabled={avatarProcessing}
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       if (!file) {
                         return;
                       }
-                      if (avatarPreview?.startsWith("blob:")) {
-                        URL.revokeObjectURL(avatarPreview);
-                      }
-                      setAvatarFile(file);
-                      setAvatarPreview(URL.createObjectURL(file));
-                      setAvatarRemoved(false);
-                      event.target.value = "";
+
+                      void (async () => {
+                        setError(null);
+                        setAvatarProcessing(true);
+
+                        try {
+                          const prepared = await prepareAvatarForUpload(file);
+                          if (avatarPreview?.startsWith("blob:")) {
+                            URL.revokeObjectURL(avatarPreview);
+                          }
+                          setAvatarFile(prepared);
+                          setAvatarPreview(URL.createObjectURL(prepared));
+                          setAvatarRemoved(false);
+                        } catch (caught) {
+                          setError(
+                            caught instanceof Error
+                              ? caught.message
+                              : "Could not use that photo.",
+                          );
+                        } finally {
+                          setAvatarProcessing(false);
+                          event.target.value = "";
+                        }
+                      })();
                     }}
                   />
                 </label>
@@ -538,7 +567,7 @@ export function OnboardingFlow() {
                     </p>
                     <p className="auth-shell-hint mt-1 text-xs">
                       Skip this if you prefer — you can always add one later.
-                      JPG, PNG, or WebP under 2MB.
+                      Large photos are resized automatically.
                     </p>
                   </div>
                   {avatarPreview ? (
@@ -594,7 +623,12 @@ export function OnboardingFlow() {
               <Button
                 type="button"
                 onClick={() => void finishOnboarding()}
-                disabled={submitting || genres.length === 0 || !usernameIsValid}
+                disabled={
+                  submitting ||
+                  avatarProcessing ||
+                  genres.length === 0 ||
+                  !usernameIsValid
+                }
                 className="sm:min-w-40"
               >
                 {submitting ? "Finishing..." : "Enter BookKit"}

@@ -24,7 +24,11 @@ export default async function DashboardPage() {
     <div className="page-stack flex flex-col">
       <FadeIn>
         <PageHeader
-          title={session?.user.name ? `Hi, ${session.user.name}` : "Dashboard"}
+          title={
+            session?.user.username
+              ? `Hi, @${session.user.username}`
+              : "Dashboard"
+          }
           description="Pick up where you left off or explore something new."
         />
       </FadeIn>

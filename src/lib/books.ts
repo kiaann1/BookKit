@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import type { BookListItem, CatalogFilters } from "@/lib/books/types";
 import {
@@ -136,6 +137,8 @@ async function getFilteredPublishedBooks(filters: CatalogFilters) {
 }
 
 export async function getCatalogData(filters: CatalogFilters = {}) {
+  noStore();
+
   const [allBooks, books] = await Promise.all([
     getAllPublishedBooks(),
     getFilteredPublishedBooks(filters),

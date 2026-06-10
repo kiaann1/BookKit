@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { BookStatus } from "@/lib/constants/book-status";
-import { prisma } from "@/lib/db";
+import { prisma, normalizeDatabaseUrl } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
@@ -19,18 +21,33 @@ export async function GET() {
   }
 
   try {
+    const rawUrl = process.env.DATABASE_URL ?? "";
+    const normalizedUrl = normalizeDatabaseUrl(rawUrl);
+    const channelBindingStripped = rawUrl !== normalizedUrl;
+
     const publishedBookCount = await prisma.book.count({
       where: { status: BookStatus.PUBLISHED },
     });
+
+    const sample =
+      publishedBookCount > 0
+        ? await prisma.book.findMany({
+            take: 3,
+            where: { status: BookStatus.PUBLISHED },
+            select: { id: true, title: true },
+          })
+        : [];
 
     return NextResponse.json({
       ok: publishedBookCount > 0,
       hasDatabaseUrl: true,
       skipDatabase: false,
+      channelBindingStripped,
       publishedBookCount,
+      sample,
       hint:
         publishedBookCount === 0
-          ? "Run scripts/seed-books.sql in the Neon SQL Editor."
+          ? "No books in the database. Log in as admin → Admin → Manage books → Seed default catalog."
           : undefined,
     });
   } catch (error) {

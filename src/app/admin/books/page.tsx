@@ -3,12 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookStatus } from "@/lib/constants/book-status";
 import { DeleteBookButton } from "@/components/admin/delete-book-button";
+import { SeedCatalogButton } from "@/components/admin/seed-catalog-button";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAllBooksForAdmin } from "@/lib/books";
 import { Plus } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Manage Books",
@@ -47,11 +50,14 @@ export default async function AdminBooksPage() {
         <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/5 px-6 py-16 text-center">
           <p className="font-medium">No books yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Upload your first PDF to populate the catalog.
+            Seed the default library into Postgres, or upload a PDF manually.
           </p>
-          <Link href="/admin/books/new" className="mt-4 inline-block">
-            <Button>Upload book</Button>
-          </Link>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3">
+            <SeedCatalogButton />
+            <Link href="/admin/books/new">
+              <Button variant="outline">Upload book</Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">

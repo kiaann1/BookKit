@@ -7,10 +7,9 @@ import {
   isAllowedAvatarFile,
   resolveAvatarExtension,
 } from "@/lib/storage/avatar";
+import { MAX_AVATAR_BYTES } from "@/lib/images/prepare-avatar";
 import { deleteFile, uploadFile } from "@/lib/storage";
 import { userAvatarKey } from "@/lib/storage/keys";
-
-const MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_EXTENSIONS = ["jpg", "png", "webp"] as const;
 
 export async function POST(request: Request) {
@@ -37,9 +36,12 @@ export async function POST(request: Request) {
       );
     }
 
-    if (file.size > MAX_BYTES) {
+    if (file.size > MAX_AVATAR_BYTES) {
       return NextResponse.json(
-        { error: "Image must be under 2MB" },
+        {
+          error:
+            "Image is still too large after resizing. Try a different photo.",
+        },
         { status: 400 },
       );
     }
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Could not save your photo. Try a JPG or PNG under 2MB, then try again.",
+          "Could not save your photo. Try a JPG or PNG, then try again.",
       },
       { status: 500 },
     );

@@ -4,6 +4,8 @@ import { CatalogResults } from "@/components/books/catalog-results";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Catalog",
 };
