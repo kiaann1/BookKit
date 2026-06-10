@@ -234,7 +234,7 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 - [ ] Initialize monorepo or single Next.js app with TypeScript
 - [ ] Set up PostgreSQL + migrations (Prisma or Drizzle)
-- [ ] Implement auth: sign up, login, logout, password reset
+- [ ] Implement auth: sign up, login, logout, password resets
 - [ ] Basic layout: nav, responsive shell, placeholder pages
 - [ ] CI/CD: lint, test, deploy to staging (Vercel + managed DB)
 - [ ] Environment variables documented (`.env.example`)
