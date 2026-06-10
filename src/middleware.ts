@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
-import { isAuthDisabled } from "@/lib/dev-auth";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const protectedRoutes = [
   "/dashboard",
@@ -16,9 +16,24 @@ const protectedRoutes = [
 
 const authRoutes = ["/login", "/register", "/forgot-password"];
 
-function handleAuth(req: Parameters<Parameters<typeof auth>[0]>[0]) {
+function isAuthDisabled() {
+  return (
+    process.env.NODE_ENV === "development" &&
+    process.env.DISABLE_AUTH === "true"
+  );
+}
+
+export async function middleware(req: NextRequest) {
+  if (isAuthDisabled()) {
+    return NextResponse.next();
+  }
+
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+  });
+  const isLoggedIn = Boolean(token);
   const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -37,10 +52,6 @@ function handleAuth(req: Parameters<Parameters<typeof auth>[0]>[0]) {
 
   return NextResponse.next();
 }
-
-export default isAuthDisabled()
-  ? () => NextResponse.next()
-  : auth(handleAuth);
 
 export const config = {
   matcher: [
