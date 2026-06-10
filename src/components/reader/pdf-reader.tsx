@@ -31,6 +31,32 @@ type PdfReaderProps = {
 
 const SAVE_DEBOUNCE_MS = 2000;
 const FOCUS_CHROME_HIDE_MS = 2500;
+const PAGE_CACHE_LIMIT = 8;
+
+function pageCacheKey(page: number, renderScale: number, width: number) {
+  return `${page}:${renderScale.toFixed(3)}:${width}`;
+}
+
+function storePageBitmap(
+  cache: Map<string, ImageBitmap>,
+  key: string,
+  bitmap: ImageBitmap,
+) {
+  const existing = cache.get(key);
+  if (existing) {
+    existing.close();
+  }
+  cache.set(key, bitmap);
+
+  while (cache.size > PAGE_CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (!oldest) {
+      break;
+    }
+    cache.get(oldest)?.close();
+    cache.delete(oldest);
+  }
+}
 
 export function PdfReader({
   bookId,
@@ -43,6 +69,8 @@ export function PdfReader({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const pdfRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pageBitmapCacheRef = useRef<Map<string, ImageBitmap>>(new Map());
   const renderTaskRef = useRef<import("pdfjs-dist").RenderTask | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<{
@@ -67,7 +95,7 @@ export function PdfReader({
   const [showFocusChrome, setShowFocusChrome] = useState(false);
   const focusChromeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pdfUrl = `/api/files/books/${bookId}/pdf`;
+  const pdfUrl = `/api/files/books/${encodeURIComponent(bookId)}/pdf`;
 
   const saveProgress = useCallback(
     async (page: number, total: number) => {
@@ -213,18 +241,10 @@ export function PdfReader({
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const response = await fetch(pdfUrl, { credentials: "include" });
-        if (!response.ok) {
-          throw new Error(`PDF fetch failed (${response.status})`);
-        }
-
-        const data = await response.arrayBuffer();
-
         const doc = await pdfjs.getDocument({
-          data,
+          url: pdfUrl,
+          withCredentials: true,
           ...getPdfJsDocumentOptions(pdfjs.version),
-          disableRange: true,
-          disableStream: true,
         }).promise;
 
         if (cancelled) {
@@ -240,9 +260,22 @@ export function PdfReader({
         currentPageRef.current = startPage;
         setCurrentPage(startPage);
         setIsLoading(false);
-      } catch {
+      } catch (reason) {
         if (!cancelled) {
-          setError("Could not load this book. Try again later.");
+          const message =
+            reason instanceof Error ? reason.message.toLowerCase() : "";
+          const code = message.includes("(401)")
+            ? "unauthorized"
+            : message.includes("(404)")
+              ? "missing"
+              : "unknown";
+          setError(
+            code === "missing"
+              ? "This book's PDF hasn't been uploaded yet. An admin needs to add the file."
+              : code === "unauthorized"
+                ? "Sign in to read this book."
+                : "Could not load this book. Try again later.",
+          );
           setIsLoading(false);
         }
       }
@@ -276,6 +309,28 @@ export function PdfReader({
 
     return () => observer.disconnect();
   }, [isLoading]);
+
+  useEffect(() => {
+    const doc = pdfRef.current;
+    if (!doc || totalPages === 0) {
+      return;
+    }
+
+    for (const pageNumber of [currentPage - 1, currentPage + 1]) {
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        void doc.getPage(pageNumber);
+      }
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    return () => {
+      for (const bitmap of pageBitmapCacheRef.current.values()) {
+        bitmap.close();
+      }
+      pageBitmapCacheRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,18 +367,43 @@ export function PdfReader({
         return;
       }
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      const cacheKey = pageCacheKey(
+        currentPage,
+        renderScale,
+        isMobile ? containerWidth : 0,
+      );
+      const cachedBitmap = pageBitmapCacheRef.current.get(cacheKey);
+      if (cachedBitmap) {
+        canvas.width = cachedBitmap.width;
+        canvas.height = cachedBitmap.height;
+        canvas.style.width = `${cachedBitmap.width}px`;
+        canvas.style.height = `${cachedBitmap.height}px`;
+        context.drawImage(cachedBitmap, 0, 0);
+        queueSave(currentPage, totalPages);
+        return;
+      }
 
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      let offscreen = offscreenCanvasRef.current;
+      if (!offscreen) {
+        offscreen = document.createElement("canvas");
+        offscreenCanvasRef.current = offscreen;
+      }
+
+      offscreen.width = viewport.width;
+      offscreen.height = viewport.height;
+
+      const offscreenContext = offscreen.getContext("2d");
+      if (!offscreenContext) {
+        return;
+      }
+
+      offscreenContext.fillStyle = "#ffffff";
+      offscreenContext.fillRect(0, 0, offscreen.width, offscreen.height);
 
       const task = page.render({
-        canvasContext: context,
+        canvasContext: offscreenContext,
         viewport,
-        canvas,
+        canvas: offscreen,
       });
       renderTaskRef.current = task;
 
@@ -344,6 +424,26 @@ export function PdfReader({
       }
 
       renderTaskRef.current = null;
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      context.drawImage(offscreen, 0, 0);
+
+      if (typeof createImageBitmap === "function") {
+        try {
+          const bitmap = await createImageBitmap(offscreen);
+          if (!cancelled) {
+            storePageBitmap(pageBitmapCacheRef.current, cacheKey, bitmap);
+          } else {
+            bitmap.close();
+          }
+        } catch {
+          // Bitmap caching is optional — rendering already succeeded.
+        }
+      }
+
       queueSave(currentPage, totalPages);
     }
 

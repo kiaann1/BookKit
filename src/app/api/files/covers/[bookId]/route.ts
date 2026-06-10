@@ -8,56 +8,52 @@ type RouteContext = {
   params: Promise<{ bookId: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
-  const { bookId: rawBookId } = await context.params;
-  const bookId = decodeURIComponent(rawBookId);
-  const book = await getBookCoverSource(bookId);
+async function serveStoredCover(coverKey: string) {
+  const driver = getStorageDriver();
 
-  if (!book) {
-    return new NextResponse(null, { status: 404 });
-  }
-
-  if (book.coverKey) {
-    const driver = getStorageDriver();
-
-    if (driver === "blob") {
-      const publicUrl = await getPublicFileUrl(book.coverKey);
-      if (publicUrl) {
-        return NextResponse.redirect(publicUrl);
-      }
-    }
-
-    if (driver === "s3") {
-      const publicUrl =
-        (await getPublicFileUrl(book.coverKey)) ??
-        (await getS3SignedUrl(book.coverKey, 3600));
+  if (driver === "blob") {
+    const publicUrl = await getPublicFileUrl(coverKey);
+    if (publicUrl) {
       return NextResponse.redirect(publicUrl);
     }
-
-    const file = await readFile(book.coverKey);
-    if (!file) {
-      return new NextResponse(null, { status: 404 });
-    }
-
-    const extension = book.coverKey.split(".").pop();
-    const contentType =
-      extension === "png"
-        ? "image/png"
-        : extension === "webp"
-          ? "image/webp"
-          : "image/jpeg";
-
-    return new NextResponse(new Uint8Array(file), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, immutable",
-      },
-    });
+    return null;
   }
 
-  const externalUrl = await resolveExternalCoverUrl(book.title, book.author);
+  if (driver === "s3") {
+    const publicUrl =
+      (await getPublicFileUrl(coverKey)) ??
+      (await getS3SignedUrl(coverKey, 3600));
+    if (publicUrl) {
+      return NextResponse.redirect(publicUrl);
+    }
+    return null;
+  }
+
+  const file = await readFile(coverKey);
+  if (!file) {
+    return null;
+  }
+
+  const extension = coverKey.split(".").pop();
+  const contentType =
+    extension === "png"
+      ? "image/png"
+      : extension === "webp"
+        ? "image/webp"
+        : "image/jpeg";
+
+  return new NextResponse(new Uint8Array(file), {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400, immutable",
+    },
+  });
+}
+
+async function serveExternalCover(title: string, author: string) {
+  const externalUrl = await resolveExternalCoverUrl(title, author);
   if (!externalUrl) {
-    return new NextResponse(null, { status: 404 });
+    return null;
   }
 
   let imageResponse: Response;
@@ -67,11 +63,11 @@ export async function GET(_request: Request, context: RouteContext) {
       cache: "no-store",
     });
   } catch {
-    return new NextResponse(null, { status: 404 });
+    return null;
   }
 
   if (!imageResponse.ok) {
-    return new NextResponse(null, { status: 404 });
+    return null;
   }
 
   const bytes = await imageResponse.arrayBuffer();
@@ -82,4 +78,28 @@ export async function GET(_request: Request, context: RouteContext) {
       "Cache-Control": "public, max-age=86400",
     },
   });
+}
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { bookId: rawBookId } = await context.params;
+  const bookId = decodeURIComponent(rawBookId);
+  const book = await getBookCoverSource(bookId);
+
+  if (!book) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  if (book.coverKey) {
+    const stored = await serveStoredCover(book.coverKey);
+    if (stored) {
+      return stored;
+    }
+  }
+
+  const external = await serveExternalCover(book.title, book.author);
+  if (external) {
+    return external;
+  }
+
+  return new NextResponse(null, { status: 404 });
 }

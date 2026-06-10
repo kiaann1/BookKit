@@ -122,12 +122,7 @@ export async function listStorageBooks(): Promise<StorageBookRecord[]> {
 export async function storageBookToListItem(
   book: StorageBookRecord,
 ): Promise<BookListItem> {
-  const coverUrl = await resolveBookCoverUrl({
-    bookId: book.id,
-    title: book.title,
-    author: book.author,
-    coverKey: book.coverKey,
-  });
+  const coverUrl = resolveBookCoverUrl(book.id);
 
   return {
     id: book.id,

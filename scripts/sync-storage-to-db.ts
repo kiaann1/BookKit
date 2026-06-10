@@ -1,15 +1,20 @@
 /**
- * Sync books from ./storage/books into PostgreSQL (and optionally S3).
+ * Sync books from ./storage/books into PostgreSQL (and optionally Blob/S3).
  *
  * Usage:
- *   npx tsx scripts/sync-storage-to-db.ts              # upsert via Prisma
- *   npx tsx scripts/sync-storage-to-db.ts --sql         # print SQL for Neon
+ *   npx tsx scripts/sync-storage-to-db.ts                    # upsert via Prisma
+ *   npx tsx scripts/sync-storage-to-db.ts --sql              # print SQL for Neon
  *   npx tsx scripts/sync-storage-to-db.ts --sql --out scripts/seed-books.sql
- *   npx tsx scripts/sync-storage-to-db.ts --upload-s3   # also upload PDFs/covers to S3
+ *   npx tsx scripts/sync-storage-to-db.ts --upload-files       # DB sync + upload PDFs/covers
+ *   npx tsx scripts/sync-storage-to-db.ts --files-only         # upload only (no DB)
  *
- * Requires DATABASE_URL in .env (Prisma reads it automatically).
- * For --upload-s3, set STORAGE_DRIVER=s3 and S3_* env vars.
+ * Requires DATABASE_URL in .env for DB sync (not needed with --files-only).
+ * For uploads, set BLOB_READ_WRITE_TOKEN (Vercel Blob) or S3_* env vars in .env.
  */
+
+import { config } from "dotenv";
+
+config();
 
 import { existsSync } from "fs";
 import { readFile, readdir, writeFile } from "fs/promises";
@@ -22,7 +27,7 @@ import {
 } from "../src/lib/books/metadata";
 import { BookStatus } from "../src/lib/constants/book-status";
 import { bookCoverKey, bookPdfKey } from "../src/lib/storage/keys";
-import { uploadFile } from "../src/lib/storage";
+import { isBlobConfigured, uploadFile } from "../src/lib/storage";
 import { isS3Configured } from "../src/lib/storage/s3";
 
 const BOOKS_ROOT = path.join(process.cwd(), "storage", "books");
@@ -114,7 +119,7 @@ function buildSql(books: LocalBook[]) {
     "-- BookKit: seed books from local storage metadata",
     "-- Run in Neon SQL Editor.",
     "-- PDFs/covers are NOT uploaded by this script — use:",
-    "--   npx tsx scripts/sync-storage-to-db.ts --upload-s3",
+    "--   npx tsx scripts/sync-storage-to-db.ts --upload-files",
     "",
     "BEGIN;",
     "",
@@ -204,9 +209,13 @@ async function resolveUploaderId(prisma: PrismaClient) {
   return anyUser.id;
 }
 
+function isRemoteStorageConfigured() {
+  return isBlobConfigured() || isS3Configured();
+}
+
 async function uploadBookFiles(book: LocalBook) {
-  if (!isS3Configured()) {
-    console.warn("S3 not configured — skipping file upload for", book.id);
+  if (!isRemoteStorageConfigured()) {
+    console.warn("Blob/S3 not configured — skipping file upload for", book.id);
     return;
   }
 
@@ -240,7 +249,28 @@ async function uploadBookFiles(book: LocalBook) {
   }
 }
 
-async function syncWithPrisma(books: LocalBook[], uploadS3: boolean) {
+async function uploadAllBookFiles(books: LocalBook[]) {
+  if (!isRemoteStorageConfigured()) {
+    console.error(
+      "Blob/S3 is not configured. Add BLOB_READ_WRITE_TOKEN (from Vercel → Storage → your Blob store) to .env",
+    );
+    process.exit(1);
+  }
+
+  let uploaded = 0;
+
+  for (const book of books) {
+    await uploadBookFiles(book);
+    uploaded += 1;
+  }
+
+  console.log(`\nUploaded files for ${uploaded} book(s).`);
+  console.log(
+    "Book metadata must already exist in Neon (e.g. scripts/seed-books.sql).",
+  );
+}
+
+async function syncWithPrisma(books: LocalBook[], uploadFiles: boolean) {
   const prisma = new PrismaClient();
   const uploadedById = await resolveUploaderId(prisma);
 
@@ -279,7 +309,7 @@ async function syncWithPrisma(books: LocalBook[], uploadS3: boolean) {
 
       console.log(`Synced: ${book.title} (${book.id})`);
 
-      if (uploadS3) {
+      if (uploadFiles) {
         await uploadBookFiles(book);
       }
     }
@@ -301,7 +331,11 @@ async function main() {
   const sqlOnly = process.argv.includes("--sql");
   const outIndex = process.argv.indexOf("--out");
   const outPath = outIndex >= 0 ? process.argv[outIndex + 1] : null;
-  const uploadS3 = process.argv.includes("--upload-s3");
+  const filesOnly = process.argv.includes("--files-only");
+  const uploadFiles =
+    filesOnly ||
+    process.argv.includes("--upload-files") ||
+    process.argv.includes("--upload-s3");
 
   const sql = buildSql(books);
 
@@ -315,11 +349,16 @@ async function main() {
     return;
   }
 
-  await syncWithPrisma(books, uploadS3);
+  if (filesOnly) {
+    await uploadAllBookFiles(books);
+    return;
+  }
 
-  if (!uploadS3 && !isS3Configured()) {
+  await syncWithPrisma(books, uploadFiles);
+
+  if (!uploadFiles && !isRemoteStorageConfigured()) {
     console.log(
-      "\nNote: Catalog metadata is in Postgres. PDFs on Vercel need S3 — re-run with --upload-s3 after configuring S3 env vars.",
+      "\nNote: Catalog metadata is in Postgres. PDFs on Vercel need Blob or S3 — re-run with --upload-files after configuring storage env vars.",
     );
   }
 }

@@ -133,11 +133,11 @@ export function getCoverUrl(bookId: string, coverKey: string | null) {
     }
   }
 
-  return `/api/files/covers/${bookId}`;
+  return getCoverApiUrl(bookId);
 }
 
 export function getCoverApiUrl(bookId: string) {
-  return `/api/files/covers/${bookId}`;
+  return `/api/files/covers/${encodeURIComponent(bookId)}`;
 }
 
 export async function getPrivateFileUrl(key: string) {

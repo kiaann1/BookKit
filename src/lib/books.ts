@@ -12,10 +12,7 @@ import { BookStatus } from "@/lib/constants/book-status";
 import { buildGenreFilterOptions } from "@/lib/constants/genres";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
-import {
-  resolveBookCoverUrl,
-  resolveBookListCoverUrl,
-} from "@/lib/covers/book-cover-url";
+import { resolveBookListCoverUrl } from "@/lib/covers/book-cover-url";
 
 export type { BookListItem, CatalogFilters } from "@/lib/books/types";
 
@@ -26,40 +23,19 @@ function canQueryDatabase() {
   );
 }
 
-async function toBookListItem(
-  book: {
-    id: string;
-    title: string;
-    author: string;
-    description: string | null;
-    genres: string[];
-    publishedAt: Date | null;
-    seriesTitle: string | null;
-    seriesIndex: number | null;
-    status: string;
-    coverKey: string | null;
-    createdAt: Date;
-  },
-  options: { fetchExternalCover?: boolean } = {},
-): Promise<BookListItem> {
-  let coverUrl = resolveBookListCoverUrl({
-    bookId: book.id,
-    coverKey: book.coverKey,
-  });
-
-  if (!coverUrl && options.fetchExternalCover) {
-    try {
-      coverUrl = await resolveBookCoverUrl({
-        bookId: book.id,
-        title: book.title,
-        author: book.author,
-        coverKey: book.coverKey,
-      });
-    } catch {
-      coverUrl = null;
-    }
-  }
-
+async function toBookListItem(book: {
+  id: string;
+  title: string;
+  author: string;
+  description: string | null;
+  genres: string[];
+  publishedAt: Date | null;
+  seriesTitle: string | null;
+  seriesIndex: number | null;
+  status: string;
+  coverKey: string | null;
+  createdAt: Date;
+}): Promise<BookListItem> {
   return {
     id: book.id,
     title: book.title,
@@ -70,7 +46,7 @@ async function toBookListItem(
     seriesTitle: book.seriesTitle,
     seriesIndex: book.seriesIndex,
     status: book.status as BookListItem["status"],
-    coverUrl,
+    coverUrl: resolveBookListCoverUrl(book.id),
     createdAt: book.createdAt,
   };
 }
@@ -163,7 +139,7 @@ export async function getPublishedBookById(id: string) {
       });
 
       if (book) {
-        return await toBookListItem(book, { fetchExternalCover: true });
+        return await toBookListItem(book);
       }
     } catch (error) {
       console.error("[catalog] Failed to load book by id:", id, error);

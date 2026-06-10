@@ -23,7 +23,10 @@ export function ReadBookButton({
   const widthClass = cn(fullWidth && "block w-full", className);
 
   return (
-    <Link href={`/read/${bookId}`} className={widthClass || undefined}>
+    <Link
+      href={`/read/${encodeURIComponent(bookId)}`}
+      className={widthClass || undefined}
+    >
       <Button
         variant={variant}
         size={size}

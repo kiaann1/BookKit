@@ -14,6 +14,7 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:sync-books": "npx tsx scripts/sync-storage-to-db.ts",
     "db:sync-books:sql": "npx tsx scripts/sync-storage-to-db.ts --sql --out scripts/seed-books.sql",
+    "db:upload-files": "npx tsx scripts/sync-storage-to-db.ts --files-only",
     "postinstall": "node scripts/copy-pdf-worker.mjs"
   },
   "prisma": {

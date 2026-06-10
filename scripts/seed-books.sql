@@ -1,7 +1,7 @@
 -- BookKit: seed books from local storage metadata
 -- Run in Neon SQL Editor.
 -- PDFs/covers are NOT uploaded by this script — use:
---   npx tsx scripts/sync-storage-to-db.ts --upload-s3
+--   npx tsx scripts/sync-storage-to-db.ts --upload-files
 
 BEGIN;
 

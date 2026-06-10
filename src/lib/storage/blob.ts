@@ -1,4 +1,4 @@
-import { del, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 
 export function isBlobConfigured() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -45,18 +45,35 @@ export async function uploadBlob(
   return { url: result.url };
 }
 
+async function readBlobWithAccess(
+  key: string,
+  access: "private" | "public",
+): Promise<Buffer | null> {
+  const pathname = normalizeKey(key);
+
+  try {
+    const result = await get(pathname, { access });
+    if (result?.statusCode !== 200 || !result.stream) {
+      return null;
+    }
+
+    return Buffer.from(await new Response(result.stream).arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 export async function readBlob(key: string): Promise<Buffer | null> {
-  const blob = await findBlobByKey(key);
-  if (!blob) {
+  if (!isBlobConfigured()) {
     return null;
   }
 
-  const response = await fetch(blob.url);
-  if (!response.ok) {
-    return null;
+  const fromPrivate = await readBlobWithAccess(key, "private");
+  if (fromPrivate) {
+    return fromPrivate;
   }
 
-  return Buffer.from(await response.arrayBuffer());
+  return readBlobWithAccess(key, "public");
 }
 
 export async function deleteBlob(key: string): Promise<void> {
@@ -71,4 +88,46 @@ export async function deleteBlob(key: string): Promise<void> {
 export async function getBlobPublicUrl(key: string): Promise<string | null> {
   const blob = await findBlobByKey(key);
   return blob?.url ?? null;
+}
+
+/** Stream a blob through range requests without buffering the full file on the server. */
+export async function streamBlobForRequest(
+  key: string,
+  request: Request,
+): Promise<Response | null> {
+  if (!isBlobConfigured()) {
+    return null;
+  }
+
+  const pathname = normalizeKey(key);
+  const range = request.headers.get("range");
+  const extraHeaders: HeadersInit = range ? { Range: range } : {};
+
+  for (const access of ["private", "public"] as const) {
+    try {
+      const result = await get(pathname, { access, headers: extraHeaders });
+      if (!result?.stream) {
+        continue;
+      }
+
+      const headers: Record<string, string> = {};
+      result.headers.forEach((value, name) => {
+        headers[name] = value;
+      });
+      if (!headers["content-type"]) {
+        headers["Content-Type"] = "application/pdf";
+      }
+      headers["Accept-Ranges"] = "bytes";
+      headers["Cache-Control"] = "private, max-age=300";
+
+      return new Response(result.stream, {
+        status: result.statusCode,
+        headers,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }

@@ -1,27 +1,10 @@
-import { resolveExternalCoverUrl } from "@/lib/covers/resolve";
-import { getCoverUrl } from "@/lib/storage";
+import { getCoverApiUrl } from "@/lib/storage";
 
-/** Fast path for catalog lists — only uses stored cover keys, no network. */
-export function resolveBookListCoverUrl(options: {
-  bookId: string;
-  coverKey: string | null;
-}) {
-  if (!options.coverKey) {
-    return null;
-  }
-
-  return getCoverUrl(options.bookId, options.coverKey);
+/** Catalog lists use the cover API so images load lazily with stored + Open Library fallback. */
+export function resolveBookListCoverUrl(bookId: string) {
+  return getCoverApiUrl(bookId);
 }
 
-export async function resolveBookCoverUrl(options: {
-  bookId: string;
-  title: string;
-  author: string;
-  coverKey: string | null;
-}): Promise<string | null> {
-  if (options.coverKey) {
-    return getCoverUrl(options.bookId, options.coverKey);
-  }
-
-  return resolveExternalCoverUrl(options.title, options.author);
+export function resolveBookCoverUrl(bookId: string) {
+  return getCoverApiUrl(bookId);
 }
