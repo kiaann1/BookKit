@@ -1,3 +1,7 @@
+import {
+  fulfillBookRequest,
+  fulfillMatchingBookRequests,
+} from "@/lib/book-requests";
 import { ensureBookMetadata } from "@/lib/books/ensure-metadata";
 import {
   bookSlugWithAuthor,
@@ -307,6 +311,17 @@ export async function createBookFromForm(
       where: { id: book.id },
       data: { pdfKey, coverKey },
     });
+
+    const bookRequestId = formData.get("bookRequestId");
+    if (typeof bookRequestId === "string" && bookRequestId.trim()) {
+      await fulfillBookRequest(bookRequestId.trim(), updated.id);
+    } else {
+      await fulfillMatchingBookRequests({
+        id: updated.id,
+        title: updated.title,
+        author: updated.author,
+      });
+    }
 
     return { book: updated };
   } catch (error) {

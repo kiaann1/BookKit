@@ -1,5 +1,6 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { getBlockStatus } from "@/lib/social/block";
 import { getFollowCounts, isFollowing } from "@/lib/social/follow";
 import { mapSocialAuthor } from "@/lib/social/map";
 import {
@@ -38,9 +39,10 @@ export async function getPublicProfile(
     return null;
   }
 
-  const [followCounts, following] = await Promise.all([
+  const [followCounts, following, blockStatus] = await Promise.all([
     getFollowCounts(user.id),
     isFollowing(viewerId, user.id),
+    getBlockStatus(viewerId, user.id),
   ]);
 
   const isSelf = user.id === viewerId;
@@ -61,8 +63,16 @@ export async function getPublicProfile(
     isFollowing: following,
     isSelf,
     isPrivate: user.isPrivate,
-    canViewFullProfile: canViewFullProfile(privacyContext),
-    canViewFollowLists: canViewFollowLists(privacyContext),
+    canViewFullProfile:
+      !blockStatus.hasBlockedViewer &&
+      !blockStatus.isBlockedByViewer &&
+      canViewFullProfile(privacyContext),
+    canViewFollowLists:
+      !blockStatus.hasBlockedViewer &&
+      !blockStatus.isBlockedByViewer &&
+      canViewFollowLists(privacyContext),
+    isBlockedByViewer: blockStatus.isBlockedByViewer,
+    hasBlockedViewer: blockStatus.hasBlockedViewer,
   };
 
   if (!profile.canViewFullProfile) {

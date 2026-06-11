@@ -3,7 +3,7 @@
 Actionable next steps by phase. For vision, data model, and stack rationale see [PROJECT.md](./PROJECT.md).
 
 **Last updated:** 2026-06-10  
-**Current position:** Phases 0–5 complete in code. **Next:** Phase 6 (book requests).
+**Current position:** Phases 0–6 complete in code. **Next:** Phase 7 (notifications & polish).
 
 ---
 
@@ -17,7 +17,7 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 | 3 | Reader & progress | ✅ Complete |
 | 4 | Genres & recommendations | ✅ Complete |
 | 5 | Social core | ✅ Complete |
-| 6 | Book requests | 🔴 Placeholder page |
+| 6 | Book requests | ✅ Complete |
 | 7 | Notifications & polish | 🔴 Partial |
 | 8 | Beta & iterate | 🔴 Not started |
 | 9 | Mobile app | ⏸ Post-traction |
@@ -152,28 +152,24 @@ Two users can follow each other, post about a book, and see each other’s posts
 
 ---
 
-## Phase 6 — Book requests & admin queue
+## Phase 6 — Book requests & admin queue ✅
 
 **Goal:** Readers request titles; admins triage and close the loop.
 
 ### Done
 
-- `/requests` route (placeholder)
-
-### Next up
-
-- [ ] **Prisma model** — `BookRequest` (`userId`, `title`, `author`, `notes`, `isbn?`, `status`, `adminNote?`, `createdAt`)
-- [ ] **Request form** — replace placeholder; Zod validation; success toast
-- [ ] **`POST /api/book-requests`** — authenticated; rate limit per user
-- [ ] **Admin queue** — `/admin/requests` — filters (pending / sourced / added / declined)
-- [ ] **Admin actions** — `PATCH /api/admin/book-requests/[id]` — status, internal note
-- [ ] **Link to catalog** — when admin adds book, mark linked request `ADDED`
-- [ ] **Requester notification** — in-app (Phase 7); optional email on `ADDED`
-- [ ] **Upvotes** (optional) — `BookRequestVote`; sort queue by demand
+- `BookRequest` + `BookRequestVote` Prisma models; migration `20250610220000_book_requests`
+- `/requests` — submit form, your requests list, popular requests with upvotes
+- `GET`/`POST` `/api/book-requests`; `POST` `/api/book-requests/[id]/vote` (rate limited)
+- `/admin/requests` — filterable admin queue (pending / sourced / added / declined)
+- `GET`/`PATCH` `/api/admin/book-requests/[id]` — status, admin note, linked catalog book
+- Book upload links request via `?requestId=` or auto-matches title+author on catalog add
+- Requester sees status updates on `/requests` (in-app notification bell → Phase 7)
+- `npm run verify:phase6`, `GET /api/health/phase6`
 
 ### Exit criteria
 
-Request submitted → visible in admin queue → status updated → requester sees update in-app.
+Request submitted → visible in admin queue → status updated → requester sees update in-app. ✅
 
 ---
 
@@ -217,8 +213,8 @@ Request submitted → visible in admin queue → status updated → requester se
 - [ ] **Empty states audit** — feed, recommendations, notifications, requests
 - [ ] **Accessibility pass** — reader focus, feed keyboard nav, star rating aria
 - [ ] **Performance** — `next/image` on all covers; lazy-load catalog; PDF API memory audit
-- [ ] **Legal pages** — `/terms`, `/privacy`
-- [ ] **Account export/delete** (GDPR-minded)
+- [x] **Legal pages** — `/terms`, `/privacy`
+- [x] **Account export/delete** (GDPR-minded)
 
 ### Exit criteria
 

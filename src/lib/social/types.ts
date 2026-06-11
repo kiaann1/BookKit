@@ -77,6 +77,8 @@ export type PublicProfile = {
   isPrivate: boolean;
   canViewFullProfile: boolean;
   canViewFollowLists: boolean;
+  isBlockedByViewer: boolean;
+  hasBlockedViewer: boolean;
 };
 
 export type UserSearchResult = SocialAuthor & {

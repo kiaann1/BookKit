@@ -14,12 +14,18 @@ type ReportPostDialogProps = {
   open: boolean;
   onClose: () => void;
   onSubmit: (reason: PostReportReason, details?: string) => Promise<boolean>;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
 };
 
 export function ReportPostDialog({
   open,
   onClose,
   onSubmit,
+  title = "Report post",
+  description = "Why are you reporting this post?",
+  submitLabel = "Submit report",
 }: ReportPostDialogProps) {
   const [selectedReason, setSelectedReason] = useState<PostReportReason | null>(
     null,
@@ -80,17 +86,15 @@ export function ReportPostDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="report-post-title"
+        aria-labelledby="report-reason-title"
         className="relative z-10 w-full max-w-md rounded-t-2xl border border-border bg-background p-5 shadow-xl sm:rounded-2xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 id="report-post-title" className="font-display text-lg font-semibold">
-              Report post
+            <h2 id="report-reason-title" className="font-display text-lg font-semibold">
+              {title}
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Why are you reporting this post?
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           </div>
           <Button
             type="button"
@@ -154,7 +158,7 @@ export function ReportPostDialog({
             disabled={!selectedReason || submitting}
             onClick={() => void handleSubmit()}
           >
-            {submitting ? "Submitting…" : "Submit report"}
+            {submitting ? "Submitting…" : submitLabel}
           </Button>
         </div>
       </div>

@@ -40,12 +40,17 @@ export default async function AdminBooksPage() {
           title="Manage books"
           description="Upload PDFs, edit metadata, and control what's in the catalog."
         />
-        <Link href="/admin/books/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            Upload book
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/requests">
+            <Button variant="outline">Book requests</Button>
+          </Link>
+          <Link href="/admin/books/new">
+            <Button>
+              <Plus className="h-4 w-4" />
+              Upload book
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Phase1Status />

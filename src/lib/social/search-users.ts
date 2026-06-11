@@ -1,5 +1,6 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { getBlockedUserIds } from "@/lib/social/block";
 import { mapSocialAuthor } from "@/lib/social/map";
 import type { UserSearchResult } from "@/lib/social/types";
 
@@ -42,9 +43,11 @@ export async function searchUsers(
     return [];
   }
 
+  const blockedUserIds = await getBlockedUserIds(viewerId);
+
   const users = await prisma.user.findMany({
     where: {
-      id: { not: viewerId },
+      id: { notIn: [viewerId, ...blockedUserIds] },
       OR: [
         { username: { contains: trimmed, mode: "insensitive" } },
         { name: { contains: trimmed, mode: "insensitive" } },

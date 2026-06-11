@@ -37,6 +37,8 @@ export async function POST(request: Request) {
 
     revalidatePath("/catalog");
     revalidatePath("/admin/books");
+    revalidatePath("/admin/requests");
+    revalidatePath("/requests");
 
     return NextResponse.json({ book: { id: result.book.id } }, { status: 201 });
   } catch (error) {

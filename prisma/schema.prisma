@@ -38,6 +38,13 @@ enum PostType {
   VIDEO
 }
 
+enum BookRequestStatus {
+  PENDING
+  SOURCED
+  ADDED
+  DECLINED
+}
+
 model User {
   id                    String    @id @default(cuid())
   email                 String    @unique
@@ -69,8 +76,14 @@ model User {
   postLikes      PostLike[]
   comments       Comment[]
   postReports    PostReport[] @relation("PostReports")
+  userReports    UserReport[] @relation("UserReports")
+  reportsFiled   UserReport[] @relation("ReportsFiled")
   followers      Follow[]     @relation("Following")
   following      Follow[]     @relation("Follower")
+  blockedUsers   UserBlock[]  @relation("BlocksInitiated")
+  blockedBy      UserBlock[]  @relation("BlocksReceived")
+  bookRequests   BookRequest[]
+  bookRequestVotes BookRequestVote[]
 }
 
 model Book {
@@ -92,6 +105,7 @@ model Book {
 
   shelfEntries UserBook[]
   posts        Post[]
+  linkedRequests BookRequest[]
 
   @@index([status])
   @@index([title])
@@ -122,6 +136,7 @@ model UserBook {
   @@index([userId])
   @@index([userId, status])
   @@index([userId, showcaseOrder])
+  @@index([bookId, updatedAt])
 }
 
 model Account {
@@ -191,6 +206,7 @@ model Post {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+  @@index([bookId, createdAt])
 }
 
 model PostLike {
@@ -233,6 +249,33 @@ model PostReport {
   @@index([postId])
 }
 
+model UserBlock {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksInitiated", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model UserReport {
+  id             String   @id @default(cuid())
+  reporterId     String
+  reportedUserId String
+  reason         String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  reporter     User @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User @relation("UserReports", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, reportedUserId])
+  @@index([reportedUserId])
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String
@@ -241,4 +284,37 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+model BookRequest {
+  id           String            @id @default(cuid())
+  userId       String
+  title        String
+  author       String
+  notes        String?           @db.Text
+  isbn         String?
+  status       BookRequestStatus @default(PENDING)
+  adminNote    String?           @db.Text
+  linkedBookId String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedBook Book?             @relation(fields: [linkedBookId], references: [id], onDelete: SetNull)
+  votes      BookRequestVote[]
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model BookRequestVote {
+  requestId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  request BookRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, userId])
+  @@index([requestId])
 }

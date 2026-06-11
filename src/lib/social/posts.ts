@@ -1,11 +1,15 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { getPublishedBookById } from "@/lib/books";
+import { BookStatus } from "@/lib/constants/book-status";
+import { resolveBookListCoverUrl } from "@/lib/covers/book-cover-url";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { getBlockedUserIds } from "@/lib/social/block";
 import { getFollowingIds, isFollowing } from "@/lib/social/follow";
-import { mapPostBook, mapSocialAuthor } from "@/lib/social/map";
+import { mapSocialAuthor } from "@/lib/social/map";
 import { canViewFullProfile } from "@/lib/social/privacy";
 import type { CreatePostInput } from "@/lib/validations/post";
+import { sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/security/sanitize";
 import { getPostMediaApiUrl } from "@/lib/storage/post-media";
 import type { CommentItem, FeedPage, PostItem } from "@/lib/social/types";
 
@@ -18,55 +22,82 @@ const authorSelect = {
   avatarUrl: true,
 } as const;
 
-async function mapPosts(
-  rows: Array<{
+const postBookSelect = {
+  id: true,
+  title: true,
+  author: true,
+  status: true,
+} as const;
+
+type PostRow = {
+  id: string;
+  type: PostItem["type"];
+  title: string | null;
+  body: string;
+  mediaKey: string | null;
+  createdAt: Date;
+  user: {
     id: string;
-    type: PostItem["type"];
-    title: string | null;
-    body: string;
-    mediaKey: string | null;
-    createdAt: Date;
-    user: {
-      id: string;
-      username: string;
-      name: string | null;
-      firstName: string | null;
-      lastName: string | null;
-      avatarUrl: string | null;
-    };
-    bookId: string | null;
-    _count: { likes: number; comments: number };
-    likes: Array<{ userId: string }>;
-  }>,
-  viewerId: string,
-): Promise<PostItem[]> {
-  const posts: PostItem[] = [];
+    username: string;
+    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+  };
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    status: string;
+  } | null;
+  _count: { likes: number; comments: number };
+  likes?: Array<{ userId: string }>;
+};
 
-  for (const row of rows) {
-    let book = null;
-    if (row.bookId) {
-      const catalogBook = await getPublishedBookById(row.bookId);
-      if (catalogBook) {
-        book = mapPostBook(catalogBook);
-      }
-    }
+function postListInclude(viewerId: string | null) {
+  return {
+    user: { select: authorSelect },
+    book: { select: postBookSelect },
+    _count: { select: { likes: true, comments: true } },
+    ...(viewerId
+      ? {
+          likes: {
+            where: { userId: viewerId },
+            select: { userId: true },
+          },
+        }
+      : {}),
+  };
+}
 
-    posts.push({
-      id: row.id,
-      type: row.type,
-      title: row.title,
-      body: row.body,
-      mediaUrl: row.mediaKey ? getPostMediaApiUrl(row.id) : null,
-      createdAt: row.createdAt,
-      author: mapSocialAuthor(row.user),
-      book,
-      likeCount: row._count.likes,
-      commentCount: row._count.comments,
-      likedByViewer: row.likes.some((like) => like.userId === viewerId),
-    });
+function mapPostBookFromJoin(book: PostRow["book"]): PostItem["book"] {
+  if (!book || book.status !== BookStatus.PUBLISHED) {
+    return null;
   }
 
-  return posts;
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    coverUrl: resolveBookListCoverUrl(book.id),
+  };
+}
+
+function mapPosts(rows: PostRow[], viewerId: string): PostItem[] {
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    mediaUrl: row.mediaKey ? getPostMediaApiUrl(row.id) : null,
+    createdAt: row.createdAt,
+    author: mapSocialAuthor(row.user),
+    book: mapPostBookFromJoin(row.book),
+    likeCount: row._count.likes,
+    commentCount: row._count.comments,
+    likedByViewer:
+      row.likes?.some((like) => like.userId === viewerId) ?? false,
+  }));
 }
 
 export async function createPost(
@@ -84,12 +115,26 @@ export async function createPost(
     }
   }
 
+  const body = sanitizePlainText(input.body);
+  const title =
+    input.type === "ARTICLE" && input.title
+      ? sanitizePlainText(input.title)
+      : null;
+
+  if (input.type === "ARTICLE" && !title) {
+    return { error: "Article title is required" as const };
+  }
+
+  if (!body && input.type !== "IMAGE" && input.type !== "VIDEO") {
+    return { error: "Post body is required" as const };
+  }
+
   const post = await prisma.post.create({
     data: {
       userId,
       type: input.type,
-      title: input.type === "ARTICLE" ? input.title : null,
-      body: input.body,
+      title,
+      body,
       mediaKey: input.mediaKey ?? null,
       bookId: input.bookId ?? null,
     },
@@ -111,7 +156,10 @@ export async function getFeedPosts(
     return { posts: [], nextCursor: null };
   }
 
-  const followingIds = await getFollowingIds(viewerId);
+  const [followingIds, blockedUserIds] = await Promise.all([
+    getFollowingIds(viewerId),
+    getBlockedUserIds(viewerId),
+  ]);
 
   const cursorFilter = options.cursor
     ? {
@@ -126,6 +174,7 @@ export async function getFeedPosts(
     : null;
 
   const visibilityFilter = {
+    userId: { notIn: blockedUserIds },
     OR: [
       { userId: viewerId },
       { user: { isPrivate: false } },
@@ -139,19 +188,12 @@ export async function getFeedPosts(
       : visibilityFilter,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    include: {
-      user: { select: authorSelect },
-      _count: { select: { likes: true, comments: true } },
-      likes: {
-        where: { userId: viewerId },
-        select: { userId: true },
-      },
-    },
+    include: postListInclude(viewerId),
   });
 
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
-  const posts = await mapPosts(pageRows, viewerId);
+  const posts = mapPosts(pageRows, viewerId);
 
   const last = pageRows[pageRows.length - 1];
   const nextCursor =
@@ -164,7 +206,7 @@ export async function getFeedPosts(
 
 export async function getFriendsRecentPosts(
   viewerId: string,
-  options: { limit?: number } = {},
+  options: { limit?: number; followingIds?: string[] } = {},
 ): Promise<PostItem[]> {
   noStore();
 
@@ -174,7 +216,8 @@ export async function getFriendsRecentPosts(
     return [];
   }
 
-  const followingIds = await getFollowingIds(viewerId);
+  const followingIds =
+    options.followingIds ?? (await getFollowingIds(viewerId));
   if (followingIds.length === 0) {
     return [];
   }
@@ -183,14 +226,7 @@ export async function getFriendsRecentPosts(
     where: { userId: { in: followingIds } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
-    include: {
-      user: { select: authorSelect },
-      _count: { select: { likes: true, comments: true } },
-      likes: {
-        where: { userId: viewerId },
-        select: { userId: true },
-      },
-    },
+    include: postListInclude(viewerId),
   });
 
   return mapPosts(rows, viewerId);
@@ -199,7 +235,12 @@ export async function getFriendsRecentPosts(
 export async function getPostsByBookId(
   bookId: string,
   viewerId: string | null,
-  options: { cursor?: string; limit?: number } = {},
+  options: {
+    cursor?: string;
+    limit?: number;
+    canonicalBookId?: string;
+    followingIds?: string[];
+  } = {},
 ): Promise<FeedPage> {
   noStore();
 
@@ -209,12 +250,15 @@ export async function getPostsByBookId(
     return { posts: [], nextCursor: null };
   }
 
-  const book = await getPublishedBookById(bookId);
-  if (!book) {
+  const resolvedBookId =
+    options.canonicalBookId ?? (await getPublishedBookById(bookId))?.id;
+  if (!resolvedBookId) {
     return { posts: [], nextCursor: null };
   }
 
-  const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
+  const followingIds =
+    options.followingIds ??
+    (viewerId ? await getFollowingIds(viewerId) : []);
 
   const cursorFilter = options.cursor
     ? {
@@ -240,30 +284,19 @@ export async function getPostsByBookId(
 
   const rows = await prisma.post.findMany({
     where: {
-      bookId: book.id,
+      bookId: resolvedBookId,
       ...(cursorFilter
         ? { AND: [cursorFilter, visibilityFilter] }
         : visibilityFilter),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    include: {
-      user: { select: authorSelect },
-      _count: { select: { likes: true, comments: true } },
-      ...(viewerId
-        ? {
-            likes: {
-              where: { userId: viewerId },
-              select: { userId: true },
-            },
-          }
-        : {}),
-    },
+    include: postListInclude(viewerId),
   });
 
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
-  const posts = await mapPosts(pageRows, viewerId ?? "");
+  const posts = mapPosts(pageRows, viewerId ?? "");
 
   const last = pageRows[pageRows.length - 1];
   const nextCursor =
@@ -332,19 +365,12 @@ export async function getUserPosts(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    include: {
-      user: { select: authorSelect },
-      _count: { select: { likes: true, comments: true } },
-      likes: {
-        where: { userId: viewerId },
-        select: { userId: true },
-      },
-    },
+    include: postListInclude(viewerId),
   });
 
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
-  const posts = await mapPosts(pageRows, viewerId);
+  const posts = mapPosts(pageRows, viewerId);
 
   const last = pageRows[pageRows.length - 1];
   const nextCursor =
@@ -421,11 +447,13 @@ export async function getPostById(postId: string, viewerId: string) {
   const row = await prisma.post.findUnique({
     where: { id: postId },
     include: {
-      user: { select: authorSelect },
-      _count: { select: { likes: true, comments: true } },
-      likes: {
-        where: { userId: viewerId },
-        select: { userId: true },
+      ...postListInclude(viewerId),
+      user: {
+        select: {
+          ...authorSelect,
+          isPrivate: true,
+          followersListVisibility: true,
+        },
       },
     },
   });
@@ -434,24 +462,11 @@ export async function getPostById(postId: string, viewerId: string) {
     return null;
   }
 
-  const author = await prisma.user.findUnique({
-    where: { id: row.userId },
-    select: {
-      id: true,
-      isPrivate: true,
-      followersListVisibility: true,
-    },
-  });
-
-  if (!author) {
-    return null;
-  }
-
-  const following = await isFollowing(viewerId, row.userId);
+  const following = await isFollowing(viewerId, row.user.id);
   const canView = canViewFullProfile({
-    isPrivate: author.isPrivate,
-    followersListVisibility: author.followersListVisibility,
-    profileUserId: row.userId,
+    isPrivate: row.user.isPrivate,
+    followersListVisibility: row.user.followersListVisibility,
+    profileUserId: row.user.id,
     viewerId,
     isFollowing: following,
   });
@@ -460,16 +475,7 @@ export async function getPostById(postId: string, viewerId: string) {
     return null;
   }
 
-  const [post] = await mapPosts(
-    [
-      {
-        ...row,
-        bookId: row.bookId,
-      },
-    ],
-    viewerId,
-  );
-
+  const [post] = mapPosts([row], viewerId);
   return post ?? null;
 }
 
@@ -491,8 +497,13 @@ export async function createComment(
     return { error: "Post not found" as const };
   }
 
+  const sanitizedBody = sanitizePlainText(body, { maxLength: 1000 });
+  if (!sanitizedBody) {
+    return { error: "Comment cannot be empty" as const };
+  }
+
   const comment = await prisma.comment.create({
-    data: { postId, userId, body },
+    data: { postId, userId, body: sanitizedBody },
     select: { id: true },
   });
 
@@ -525,14 +536,16 @@ export async function reportPost(
     create: {
       postId,
       reporterId,
-      reason: details?.trim()
-        ? `${reason}: ${details.trim()}`
-        : reason,
+      reason: sanitizeOptionalPlainText(
+        details?.trim() ? `${reason}: ${details.trim()}` : reason,
+        { maxLength: 500 },
+      ),
     },
     update: {
-      reason: details?.trim()
-        ? `${reason}: ${details.trim()}`
-        : reason,
+      reason: sanitizeOptionalPlainText(
+        details?.trim() ? `${reason}: ${details.trim()}` : reason,
+        { maxLength: 500 },
+      ),
     },
   });
 

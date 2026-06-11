@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
+import { enforceUserRateLimit } from "@/lib/security/rate-limit";
 import {
   MAX_POST_IMAGE_BYTES,
   MAX_POST_VIDEO_BYTES,
@@ -181,6 +182,14 @@ export async function POST(request: Request) {
   const auth = await getAuthenticatedUser();
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = enforceUserRateLimit(auth.userId, "create-post", {
+    limit: 30,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (limited) {
+    return limited;
   }
 
   const contentType = request.headers.get("content-type") ?? "";

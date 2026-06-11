@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
+import { AccountDataRights } from "@/components/settings/account-data-rights";
 import { PrivacySettingsForm } from "@/components/settings/privacy-settings-form";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 
@@ -26,6 +27,16 @@ export default async function PrivacySettingsPage() {
       </p>
 
       <PrivacySettingsForm />
+
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-medium">Your data</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Export or delete your personal data (GDPR data subject rights).
+          </p>
+        </div>
+        <AccountDataRights />
+      </div>
     </FadeIn>
   );
 }

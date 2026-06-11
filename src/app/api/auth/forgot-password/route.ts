@@ -1,9 +1,18 @@
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "forgot-password", {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (limited) {
+    return limited;
+  }
+
   try {
     const body = await request.json();
     const parsed = forgotPasswordSchema.safeParse(body);

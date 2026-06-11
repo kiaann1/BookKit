@@ -33,10 +33,108 @@ ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "title" TEXT;
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "mediaKey" TEXT;
 
 -- ---------------------------------------------------------------------------
+-- 4. Discussion indexes (20250610200000_discussion_indexes)
+-- ---------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS "Post_bookId_createdAt_idx" ON "Post"("bookId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "UserBook_bookId_updatedAt_idx" ON "UserBook"("bookId", "updatedAt" DESC);
+
+-- ---------------------------------------------------------------------------
+-- 5. User block & report (20250610210000_user_block_report)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "UserBlock" (
+    "blockerId" TEXT NOT NULL,
+    "blockedId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UserBlock_pkey" PRIMARY KEY ("blockerId","blockedId")
+);
+
+CREATE TABLE IF NOT EXISTS "UserReport" (
+    "id" TEXT NOT NULL,
+    "reporterId" TEXT NOT NULL,
+    "reportedUserId" TEXT NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UserReport_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "UserBlock_blockerId_idx" ON "UserBlock"("blockerId");
+CREATE INDEX IF NOT EXISTS "UserBlock_blockedId_idx" ON "UserBlock"("blockedId");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserReport_reporterId_reportedUserId_key" ON "UserReport"("reporterId", "reportedUserId");
+CREATE INDEX IF NOT EXISTS "UserReport_reportedUserId_idx" ON "UserReport"("reportedUserId");
+
+DO $$ BEGIN
+  ALTER TABLE "UserBlock" ADD CONSTRAINT "UserBlock_blockerId_fkey" FOREIGN KEY ("blockerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "UserBlock" ADD CONSTRAINT "UserBlock_blockedId_fkey" FOREIGN KEY ("blockedId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "UserReport" ADD CONSTRAINT "UserReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "UserReport" ADD CONSTRAINT "UserReport_reportedUserId_fkey" FOREIGN KEY ("reportedUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------------------------------------------------------------------------
+-- 6. Book requests (20250610220000_book_requests)
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN
+  CREATE TYPE "BookRequestStatus" AS ENUM ('PENDING', 'SOURCED', 'ADDED', 'DECLINED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "BookRequest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "author" TEXT NOT NULL,
+    "notes" TEXT,
+    "isbn" TEXT,
+    "status" "BookRequestStatus" NOT NULL DEFAULT 'PENDING',
+    "adminNote" TEXT,
+    "linkedBookId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "BookRequest_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "BookRequestVote" (
+    "requestId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "BookRequestVote_pkey" PRIMARY KEY ("requestId","userId")
+);
+
+CREATE INDEX IF NOT EXISTS "BookRequest_status_createdAt_idx" ON "BookRequest"("status", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "BookRequest_userId_createdAt_idx" ON "BookRequest"("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "BookRequestVote_requestId_idx" ON "BookRequestVote"("requestId");
+
+DO $$ BEGIN
+  ALTER TABLE "BookRequest" ADD CONSTRAINT "BookRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "BookRequest" ADD CONSTRAINT "BookRequest_linkedBookId_fkey" FOREIGN KEY ("linkedBookId") REFERENCES "Book"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "BookRequestVote" ADD CONSTRAINT "BookRequestVote_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "BookRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "BookRequestVote" ADD CONSTRAINT "BookRequestVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------------------------------------------------------------------------
 -- Optional: mark migrations applied (so future `prisma migrate deploy` skips them)
 -- Only run if these rows are not already in "_prisma_migrations".
 -- ---------------------------------------------------------------------------
 -- INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 -- VALUES
 --   (gen_random_uuid()::text, '', NOW(), '20250610180000_user_privacy', NULL, NULL, NOW(), 1),
---   (gen_random_uuid()::text, '', NOW(), '20250610190000_post_media', NULL, NULL, NOW(), 1);
+--   (gen_random_uuid()::text, '', NOW(), '20250610190000_post_media', NULL, NULL, NOW(), 1),
+--   (gen_random_uuid()::text, '', NOW(), '20250610220000_book_requests', NULL, NULL, NOW(), 1);

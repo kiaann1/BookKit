@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import type { BookListItem, CatalogFilters } from "@/lib/books/types";
@@ -132,7 +133,9 @@ export async function getPublishedBooks(filters: CatalogFilters = {}) {
   return books;
 }
 
-export async function getPublishedBookById(id: string) {
+export const getPublishedBookById = cache(async function getPublishedBookById(
+  id: string,
+) {
   const candidates = getBookIdLookupCandidates(id);
 
   for (const candidate of candidates) {
@@ -157,6 +160,45 @@ export async function getPublishedBookById(id: string) {
   }
 
   return null;
+});
+
+const RECOMMENDATION_CANDIDATE_LIMIT = 80;
+
+export async function getRecommendationCandidateBooks(
+  genrePreferences: string[] = [],
+) {
+  if (!(await isDatabaseAvailable())) {
+    const books = await getPublishedBooks();
+    return books.slice(0, RECOMMENDATION_CANDIDATE_LIMIT);
+  }
+
+  try {
+    if (genrePreferences.length > 0) {
+      const genreMatches = await prisma.book.findMany({
+        where: {
+          status: BookStatus.PUBLISHED,
+          genres: { hasSome: genrePreferences },
+        },
+        orderBy: { createdAt: "desc" },
+        take: RECOMMENDATION_CANDIDATE_LIMIT,
+      });
+
+      if (genreMatches.length >= 24) {
+        return Promise.all(genreMatches.map((row) => toBookListItem(row)));
+      }
+    }
+
+    const rows = await prisma.book.findMany({
+      where: { status: BookStatus.PUBLISHED },
+      orderBy: { createdAt: "desc" },
+      take: RECOMMENDATION_CANDIDATE_LIMIT,
+    });
+
+    return Promise.all(rows.map((row) => toBookListItem(row)));
+  } catch {
+    const books = await getPublishedBooks();
+    return books.slice(0, RECOMMENDATION_CANDIDATE_LIMIT);
+  }
 }
 
 export async function getAllBooksForAdmin() {

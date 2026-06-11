@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   title: "Feed",
 };
 
-export const dynamic = "force-dynamic";
-
 export default async function FeedPage() {
   await requireCompletedOnboarding();
   const user = await getAuthenticatedUser();

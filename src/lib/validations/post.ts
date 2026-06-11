@@ -1,7 +1,4 @@
 import { z } from "zod";
-import { POST_REPORT_REASONS } from "@/lib/constants/report-reasons";
-
-const reportReasonValues = POST_REPORT_REASONS.map((reason) => reason.value);
 import {
   ARTICLE_BODY_MAX_CHARS,
   ARTICLE_TITLE_MAX_CHARS,
@@ -10,8 +7,13 @@ import {
   TEXT_POST_MAX_CHARS,
   VIDEO_CAPTION_MAX_CHARS,
 } from "@/lib/constants/post-types";
+import { POST_REPORT_REASONS } from "@/lib/constants/report-reasons";
+import { sanitizeOptionalPlainText } from "@/lib/security/sanitize";
+import { optionalSafeResourceIdSchema } from "@/lib/validations/ids";
 
-const bookIdField = z.string().min(1).optional().nullable();
+const reportReasonValues = POST_REPORT_REASONS.map((reason) => reason.value);
+
+const bookIdField = optionalSafeResourceIdSchema;
 
 export const createTextPostSchema = z.object({
   type: z.literal("TEXT"),
@@ -145,7 +147,13 @@ export const createCommentSchema = z.object({
 
 export const reportPostSchema = z.object({
   reason: z.enum(reportReasonValues),
-  details: z.string().trim().max(500).optional().nullable(),
+  details: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .nullable()
+    .transform((value) => sanitizeOptionalPlainText(value, { maxLength: 500 })),
 });
 
 export const feedQuerySchema = z.object({

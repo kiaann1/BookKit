@@ -50,9 +50,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   const user = await getAuthenticatedUser();
   const [shelfEntry, progress, discussion] = await Promise.all([
-    user ? getShelfEntry(user.userId, id) : Promise.resolve(null),
-    user ? getReadingProgress(user.userId, id) : Promise.resolve(null),
-    getBookDiscussion(id, user?.userId),
+    user ? getShelfEntry(user.userId, canonicalBookId) : Promise.resolve(null),
+    user
+      ? getReadingProgress(user.userId, canonicalBookId)
+      : Promise.resolve(null),
+    getBookDiscussion(canonicalBookId, user?.userId, {
+      canonicalBookId,
+    }),
   ]);
 
   return (

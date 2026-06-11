@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_SHOWCASE_BOOKS } from "@/lib/constants/shelf";
 import { ShelfStatus } from "@/lib/constants/shelf-status";
+import { safeResourceIdSchema } from "@/lib/validations/ids";
 
 const shelfStatusEnum = z.enum([
   ShelfStatus.WANT_TO_READ,
@@ -10,7 +11,7 @@ const shelfStatusEnum = z.enum([
 ]);
 
 export const addToShelfSchema = z.object({
-  bookId: z.string().min(1),
+  bookId: safeResourceIdSchema,
   status: shelfStatusEnum.default(ShelfStatus.WANT_TO_READ),
 });
 
@@ -34,6 +35,6 @@ export const updateShelfSchema = z
 
 export const setShowcaseSchema = z.object({
   bookIds: z
-    .array(z.string().min(1))
+    .array(safeResourceIdSchema)
     .max(MAX_SHOWCASE_BOOKS, `Showcase supports up to ${MAX_SHOWCASE_BOOKS} books`),
 });

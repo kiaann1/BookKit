@@ -148,6 +148,18 @@ export function RegisterForm() {
           </motion.p>
         ) : null}
 
+        <p className="text-xs text-muted-foreground">
+          By creating an account you agree to our{" "}
+          <Link href="/terms" className="text-primary underline-offset-4 hover:underline">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-primary underline-offset-4 hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Creating account..." : "Create account"}
         </Button>

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { prisma } from "@/lib/db";
+import { sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/security/sanitize";
 import { onboardingSchema } from "@/lib/validations/user";
 
 export async function GET() {
@@ -49,9 +50,14 @@ export async function PATCH(request: Request) {
   }
 
   const data = parsed.data;
+  const firstName = sanitizePlainText(data.firstName, { maxLength: 60 });
+  const lastName = sanitizePlainText(data.lastName, { maxLength: 60 });
+  const bio = sanitizeOptionalPlainText(data.bio, { maxLength: 500 });
   const displayName =
-    data.displayName?.trim() ||
-    [data.firstName, data.lastName].filter(Boolean).join(" ").trim();
+    (data.displayName
+      ? sanitizePlainText(data.displayName, { maxLength: 80 })
+      : null) ||
+    [firstName, lastName].filter(Boolean).join(" ").trim();
 
   const existingUsername = await prisma.user.findUnique({
     where: { username: data.username },
@@ -69,13 +75,13 @@ export async function PATCH(request: Request) {
     const user = await prisma.user.update({
       where: { id: auth.userId },
       data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
+        firstName,
+        lastName,
         username: data.username,
         name: displayName || undefined,
         genrePreferences: data.genrePreferences,
         booksPerWeek: data.booksPerWeek,
-        bio: data.bio?.trim() || null,
+        bio,
         avatarUrl:
           data.avatarUrl === undefined ? undefined : data.avatarUrl,
         onboardingCompletedAt: new Date(),

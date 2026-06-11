@@ -1,5 +1,8 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { getPublishedBooks } from "@/lib/books";
+import {
+  getPublishedBooks,
+  getRecommendationCandidateBooks,
+} from "@/lib/books";
 import type { BookListItem } from "@/lib/books/types";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
@@ -138,10 +141,8 @@ export async function getRecommendationsForUser(
 ): Promise<RecommendedBook[]> {
   noStore();
 
-  const [books, context] = await Promise.all([
-    getPublishedBooks(),
-    buildContext(userId),
-  ]);
+  const context = await buildContext(userId);
+  const books = await getRecommendationCandidateBooks(context.genrePreferences);
 
   return rankBooks(books, context, {
     excludeOnShelf: options.excludeOnShelf ?? true,
@@ -155,10 +156,8 @@ export async function getNewInGenreBooks(
 ): Promise<RecommendedBook[]> {
   noStore();
 
-  const [books, context] = await Promise.all([
-    getPublishedBooks(),
-    buildContext(userId),
-  ]);
+  const context = await buildContext(userId);
+  const books = await getRecommendationCandidateBooks(context.genrePreferences);
 
   return rankNewInGenreBooks(books, context, limit);
 }
@@ -168,10 +167,8 @@ export async function getRecommendationFeed(
 ): Promise<RecommendationFeed> {
   noStore();
 
-  const [books, context] = await Promise.all([
-    getPublishedBooks(),
-    buildContext(userId),
-  ]);
+  const context = await buildContext(userId);
+  const books = await getRecommendationCandidateBooks(context.genrePreferences);
 
   const hasGenrePreferences = context.genrePreferences.length > 0;
   const forYou = rankBooks(books, context, {

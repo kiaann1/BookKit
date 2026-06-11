@@ -26,6 +26,7 @@ type BookFormValues = {
 type BookFormProps = {
   mode: "create" | "edit";
   bookId?: string;
+  bookRequestId?: string;
   initialValues?: Partial<BookFormValues>;
 };
 
@@ -40,7 +41,12 @@ const defaultValues: BookFormValues = {
   status: BookStatus.PUBLISHED,
 };
 
-export function BookForm({ mode, bookId, initialValues }: BookFormProps) {
+export function BookForm({
+  mode,
+  bookId,
+  bookRequestId,
+  initialValues,
+}: BookFormProps) {
   const router = useRouter();
   const [values, setValues] = useState<BookFormValues>({
     ...defaultValues,
@@ -76,6 +82,7 @@ export function BookForm({ mode, bookId, initialValues }: BookFormProps) {
     if (values.seriesIndex) formData.set("seriesIndex", values.seriesIndex);
     if (pdf) formData.set("pdf", pdf);
     if (cover) formData.set("cover", cover);
+    if (bookRequestId) formData.set("bookRequestId", bookRequestId);
 
     try {
       const url =
@@ -115,6 +122,14 @@ export function BookForm({ mode, bookId, initialValues }: BookFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {bookRequestId ? (
+        <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+          Uploading for book request{" "}
+          <span className="font-mono text-foreground">{bookRequestId}</span>. This
+          request will be marked added when the upload succeeds.
+        </p>
+      ) : null}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>

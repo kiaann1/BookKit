@@ -31,7 +31,38 @@ type BookOption = {
   id: string;
   title: string;
   author: string;
+  coverUrl?: string | null;
 };
+
+function bookCoverUrl(book: { id: string; coverUrl?: string | null }) {
+  return book.coverUrl ?? `/api/files/covers/${encodeURIComponent(book.id)}`;
+}
+
+function BookCoverThumb({
+  book,
+  className,
+}: {
+  book: { id: string; coverUrl?: string | null };
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-primary/10 to-brand-coral/10",
+        className,
+      )}
+    >
+      <Image
+        src={bookCoverUrl(book)}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="40px"
+        unoptimized
+      />
+    </div>
+  );
+}
 
 const TYPE_ICONS: Record<PostType, typeof Type> = {
   TEXT: Type,
@@ -65,6 +96,7 @@ export function ComposePostSheet() {
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [bookQuery, setBookQuery] = useState("");
   const [bookOptions, setBookOptions] = useState<BookOption[]>([]);
+  const [searchingBooks, setSearchingBooks] = useState(false);
   const [selectedBook, setSelectedBook] = useState<BookOption | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,18 +135,26 @@ export function ComposePostSheet() {
   useEffect(() => {
     if (!bookQuery.trim() || selectedBook) {
       setBookOptions([]);
+      setSearchingBooks(false);
       return;
     }
 
+    setSearchingBooks(true);
+
     const timer = setTimeout(async () => {
-      const response = await fetch(
-        `/api/books/search?q=${encodeURIComponent(bookQuery.trim())}`,
-      );
-      if (!response.ok) {
-        return;
+      try {
+        const response = await fetch(
+          `/api/books/search?q=${encodeURIComponent(bookQuery.trim())}`,
+        );
+        if (!response.ok) {
+          setBookOptions([]);
+          return;
+        }
+        const data = (await response.json()) as { books: BookOption[] };
+        setBookOptions(data.books);
+      } finally {
+        setSearchingBooks(false);
       }
-      const data = (await response.json()) as { books: BookOption[] };
-      setBookOptions(data.books);
     }, 250);
 
     return () => clearTimeout(timer);
@@ -223,6 +263,11 @@ export function ComposePostSheet() {
           ? Boolean(mediaFile)
           : true);
 
+  const isBookTaggingExpanded =
+    Boolean(selectedBook) ||
+    bookQuery.trim().length > 0 ||
+    bookOptions.length > 0;
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <button
@@ -232,7 +277,14 @@ export function ComposePostSheet() {
         onClick={closeCompose}
       />
 
-      <div className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border/80 bg-background shadow-2xl sm:rounded-3xl">
+      <div
+        className={cn(
+          "relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border/80 bg-background shadow-2xl transition-[max-height,min-height] duration-300 ease-out sm:rounded-3xl",
+          isBookTaggingExpanded
+            ? "max-h-[92dvh] min-h-[min(92dvh,36rem)]"
+            : "max-h-[90dvh] min-h-0",
+        )}
+      >
         <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
           <h2 className="font-medium">Create post</h2>
           <button
@@ -360,7 +412,12 @@ export function ComposePostSheet() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+            <div
+              className={cn(
+                "rounded-xl border border-border/80 bg-muted/20 p-3 transition-colors",
+                selectedBook && "border-primary/25 bg-primary/5",
+              )}
+            >
               <div className="mb-2 flex items-center gap-2 text-sm font-medium">
                 <BookOpen className="h-4 w-4 text-primary" />
                 Attach a book
@@ -370,53 +427,76 @@ export function ComposePostSheet() {
               </p>
 
               {selectedBook ? (
-                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-                  <span>
-                    <strong>{selectedBook.title}</strong>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      by {selectedBook.author}
-                    </span>
-                  </span>
+                <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-background/80 p-2.5">
+                  <BookCoverThumb book={selectedBook} className="h-14 w-10" />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-medium leading-snug">
+                      {selectedBook.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {selectedBook.author}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSelectedBook(null)}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     aria-label="Remove attached book"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={bookQuery}
-                    onChange={(event) => setBookQuery(event.target.value)}
-                    placeholder="Search by title or author…"
-                    className="bg-background pl-9"
-                  />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={bookQuery}
+                      onChange={(event) => setBookQuery(event.target.value)}
+                      placeholder="Search by title or author…"
+                      className="bg-background pl-9"
+                    />
+                  </div>
+
+                  {searchingBooks ? (
+                    <p className="px-1 text-xs text-muted-foreground">
+                      Searching catalog…
+                    </p>
+                  ) : bookQuery.trim().length > 0 && bookOptions.length === 0 ? (
+                    <p className="px-1 text-xs text-muted-foreground">
+                      No books found.
+                    </p>
+                  ) : null}
+
                   {bookOptions.length > 0 ? (
-                    <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-border/80 bg-card shadow-lg">
+                    <ul className="max-h-52 space-y-1 overflow-y-auto rounded-xl border border-border/80 bg-card p-1">
                       {bookOptions.map((book) => (
-                        <button
-                          key={book.id}
-                          type="button"
-                          className="block w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
-                          onClick={() => {
-                            setSelectedBook(book);
-                            setBookQuery("");
-                            setBookOptions([]);
-                          }}
-                        >
-                          <span className="font-medium">{book.title}</span>
-                          <span className="text-muted-foreground">
-                            {" "}
-                            · {book.author}
-                          </span>
-                        </button>
+                        <li key={book.id}>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-muted/50"
+                            onClick={() => {
+                              setSelectedBook(book);
+                              setBookQuery("");
+                              setBookOptions([]);
+                            }}
+                          >
+                            <BookCoverThumb
+                              book={book}
+                              className="h-12 w-9"
+                            />
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-sm font-medium leading-snug">
+                                {book.title}
+                              </p>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {book.author}
+                              </p>
+                            </div>
+                          </button>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   ) : null}
                 </div>
               )}

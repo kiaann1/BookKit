@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
+import { enforceUserRateLimit } from "@/lib/security/rate-limit";
 import { createComment, getPostComments } from "@/lib/social/posts";
 import { createCommentSchema } from "@/lib/validations/post";
 
@@ -30,6 +31,14 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+
+  const limited = enforceUserRateLimit(auth.userId, "create-comment", {
+    limit: 60,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (limited) {
+    return limited;
+  }
 
   let body: unknown;
   try {

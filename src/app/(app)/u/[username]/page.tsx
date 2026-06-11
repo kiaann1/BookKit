@@ -8,6 +8,7 @@ import { FadeIn } from "@/components/motion/fade-in";
 import { FeedView } from "@/components/social/feed-view";
 import { FollowCountLinks } from "@/components/social/follow-count-links";
 import { FollowButton } from "@/components/social/follow-button";
+import { ProfileOptionsMenu } from "@/components/social/profile-options-menu";
 import { ShowcaseGrid } from "@/components/profile/showcase-grid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,11 +102,17 @@ export default async function PublicProfilePage({
                     </Link>
                   </>
                 ) : (
-                  <FollowButton
-                    username={profile.username}
-                    initialFollowing={profile.isFollowing}
-                    isSelf={profile.isSelf}
-                  />
+                  <>
+                    <FollowButton
+                      username={profile.username}
+                      initialFollowing={profile.isFollowing}
+                      isSelf={profile.isSelf}
+                    />
+                    <ProfileOptionsMenu
+                      username={profile.username}
+                      initialBlocked={profile.isBlockedByViewer}
+                    />
+                  </>
                 )}
               </div>
             </div>
@@ -125,7 +132,16 @@ export default async function PublicProfilePage({
               />
             </div>
 
-            {profile.isPrivate && !profile.canViewFullProfile ? (
+            {profile.hasBlockedViewer ? (
+              <p className="mt-4 rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                You can&apos;t view this profile.
+              </p>
+            ) : profile.isBlockedByViewer ? (
+              <p className="mt-4 rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                You blocked @{profile.username}. Unblock them from the menu to
+                see their posts and bookshelf again.
+              </p>
+            ) : profile.isPrivate && !profile.canViewFullProfile ? (
               <p className="mt-4 rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                 This account is private. Follow @{profile.username} to see their
                 posts, bookshelf, and showcase.

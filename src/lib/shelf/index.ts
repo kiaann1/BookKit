@@ -2,6 +2,7 @@ import { getPublishedBookById } from "@/lib/books";
 import type { ShelfStatus } from "@/lib/constants/shelf-status";
 import { MAX_SHOWCASE_BOOKS } from "@/lib/constants/shelf";
 import { isDatabaseAvailable } from "@/lib/db/health";
+import { sanitizeOptionalPlainText } from "@/lib/security/sanitize";
 import { prisma } from "@/lib/db";
 import {
   localAddToShelf,
@@ -179,7 +180,13 @@ export async function updateShelfEntry(
       data: {
         ...(input.status ? { status: input.status } : {}),
         ...(input.rating !== undefined ? { rating: input.rating } : {}),
-        ...(input.review !== undefined ? { review: input.review } : {}),
+        ...(input.review !== undefined
+          ? {
+              review: sanitizeOptionalPlainText(input.review, {
+                maxLength: 2000,
+              }),
+            }
+          : {}),
         ...(input.startedAt !== undefined ? { startedAt: input.startedAt } : {}),
         ...(input.finishedAt !== undefined
           ? { finishedAt: input.finishedAt }

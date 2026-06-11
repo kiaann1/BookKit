@@ -35,7 +35,11 @@ export type BookDiscussionPage = {
 export async function getBookReviews(
   bookId: string,
   viewerId: string | null,
-  options: { limit?: number } = {},
+  options: {
+    limit?: number;
+    canonicalBookId?: string;
+    followingIds?: string[];
+  } = {},
 ): Promise<BookReviewItem[]> {
   noStore();
 
@@ -45,12 +49,15 @@ export async function getBookReviews(
     return [];
   }
 
-  const book = await getPublishedBookById(bookId);
-  if (!book) {
+  const resolvedBookId =
+    options.canonicalBookId ?? (await getPublishedBookById(bookId))?.id;
+  if (!resolvedBookId) {
     return [];
   }
 
-  const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
+  const followingIds =
+    options.followingIds ??
+    (viewerId ? await getFollowingIds(viewerId) : []);
 
   const userVisibility = viewerId
     ? {
@@ -64,7 +71,7 @@ export async function getBookReviews(
 
   const rows = await prisma.userBook.findMany({
     where: {
-      bookId: book.id,
+      bookId: resolvedBookId,
       review: { not: null },
       user: userVisibility,
     },
@@ -91,10 +98,27 @@ export async function getBookReviews(
 export async function getBookDiscussion(
   bookId: string,
   viewerId?: string | null,
+  options: { canonicalBookId?: string } = {},
 ): Promise<BookDiscussionPage> {
+  const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
+  const canonicalBookId =
+    options.canonicalBookId ?? (await getPublishedBookById(bookId))?.id;
+
+  if (!canonicalBookId) {
+    return { posts: [], reviews: [], postsCursor: null };
+  }
+
   const [postPage, reviews] = await Promise.all([
-    getPostsByBookId(bookId, viewerId ?? null, { limit: 10 }),
-    getBookReviews(bookId, viewerId ?? null, { limit: 20 }),
+    getPostsByBookId(bookId, viewerId ?? null, {
+      limit: 10,
+      canonicalBookId,
+      followingIds,
+    }),
+    getBookReviews(bookId, viewerId ?? null, {
+      limit: 20,
+      canonicalBookId,
+      followingIds,
+    }),
   ]);
 
   return {

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import { CookieNotice } from "@/components/layout/cookie-notice";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ComposePostSheet } from "@/components/social/compose-post-sheet";
 import { ComposeProvider } from "@/components/social/compose-context";
@@ -62,6 +64,8 @@ export default async function RootLayout({
                   <ComposePostSheet />
                 </>
               ) : null}
+              <SiteFooter />
+              <CookieNotice />
             </div>
           </ComposeProvider>
         </AuthSessionProvider>

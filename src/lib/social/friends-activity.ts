@@ -22,7 +22,7 @@ export { getFriendsRecentPosts };
 
 export async function getFriendsReading(
   viewerId: string,
-  options: { limit?: number } = {},
+  options: { limit?: number; followingIds?: string[] } = {},
 ): Promise<FriendReadingItem[]> {
   noStore();
 
@@ -32,7 +32,8 @@ export async function getFriendsReading(
     return [];
   }
 
-  const followingIds = await getFollowingIds(viewerId);
+  const followingIds =
+    options.followingIds ?? (await getFollowingIds(viewerId));
   if (followingIds.length === 0) {
     return [];
   }
@@ -73,16 +74,16 @@ export async function getFriendsReading(
 export async function getFriendsActivity(
   viewerId: string,
 ): Promise<FriendsActivity> {
-  const [recentPosts, friendsReading] = await Promise.all([
-    getFriendsRecentPosts(viewerId, { limit: 5 }),
-    getFriendsReading(viewerId, { limit: 10 }),
-  ]);
+  const followingIds = await getFollowingIds(viewerId);
 
-  const followingCount = (await getFollowingIds(viewerId)).length;
+  const [recentPosts, friendsReading] = await Promise.all([
+    getFriendsRecentPosts(viewerId, { limit: 5, followingIds }),
+    getFriendsReading(viewerId, { limit: 10, followingIds }),
+  ]);
 
   return {
     recentPosts,
     friendsReading,
-    followingCount,
+    followingCount: followingIds.length,
   };
 }

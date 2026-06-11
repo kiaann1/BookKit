@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import { resolveAvatarUrl } from "@/lib/storage/avatar";
+import { sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/security/sanitize";
 import { userSettingsSchema } from "@/lib/validations/user";
 
 async function requireDatabase() {
@@ -86,9 +87,21 @@ export async function PATCH(request: Request) {
   }
 
   const data = parsed.data;
+  const firstName =
+    data.firstName !== undefined
+      ? sanitizePlainText(data.firstName, { maxLength: 60 })
+      : undefined;
+  const lastName =
+    data.lastName !== undefined
+      ? sanitizePlainText(data.lastName, { maxLength: 60 })
+      : undefined;
+  const bio =
+    data.bio !== undefined
+      ? sanitizeOptionalPlainText(data.bio, { maxLength: 500 })
+      : undefined;
   const displayName =
-    data.firstName !== undefined || data.lastName !== undefined
-      ? [data.firstName, data.lastName].filter(Boolean).join(" ").trim()
+    firstName !== undefined || lastName !== undefined
+      ? [firstName, lastName].filter(Boolean).join(" ").trim()
       : undefined;
 
   if (data.username) {
@@ -109,13 +122,13 @@ export async function PATCH(request: Request) {
     const user = await prisma.user.update({
       where: { id: auth.userId },
       data: {
-        ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
-        ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+        ...(firstName !== undefined ? { firstName } : {}),
+        ...(lastName !== undefined ? { lastName } : {}),
         ...(data.username !== undefined ? { username: data.username } : {}),
         ...(displayName !== undefined
           ? { name: displayName || null }
           : {}),
-        ...(data.bio !== undefined ? { bio: data.bio } : {}),
+        ...(bio !== undefined ? { bio } : {}),
         ...(data.genrePreferences !== undefined
           ? { genrePreferences: data.genrePreferences }
           : {}),

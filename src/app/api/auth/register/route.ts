@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { sanitizePlainText } from "@/lib/security/sanitize";
 import { generateUniqueUsername } from "@/lib/user/username";
 import { registerSchema } from "@/lib/validations/auth";
 
@@ -32,6 +34,14 @@ function registerErrorMessage(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "register", {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (limited) {
+    return limited;
+  }
+
   try {
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
@@ -44,9 +54,9 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.toLowerCase();
-    const firstName = parsed.data.firstName.trim();
-    const lastName = parsed.data.lastName.trim();
-    const phone = parsed.data.phone.trim();
+    const firstName = sanitizePlainText(parsed.data.firstName, { maxLength: 60 });
+    const lastName = sanitizePlainText(parsed.data.lastName, { maxLength: 60 });
+    const phone = sanitizePlainText(parsed.data.phone, { maxLength: 30 });
     const displayName = `${firstName} ${lastName}`;
 
     const existing = await prisma.user.findUnique({

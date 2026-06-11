@@ -1,6 +1,12 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { applySecurityHeaders } from "@/lib/security/headers";
+
+function secure(response: NextResponse) {
+  applySecurityHeaders(response);
+  return response;
+}
 
 const protectedRoutes = [
   "/dashboard",
@@ -28,7 +34,7 @@ function isAuthDisabled() {
 
 export async function middleware(req: NextRequest) {
   if (isAuthDisabled()) {
-    return NextResponse.next();
+    return secure(NextResponse.next());
   }
 
   const token = await getToken({
@@ -47,11 +53,15 @@ export async function middleware(req: NextRequest) {
   const isOnboarding = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
 
   if (isLoggedIn && !onboardingCompleted && isProtected) {
-    return NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin));
+    return secure(
+      NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin)),
+    );
   }
 
   if (isLoggedIn && onboardingCompleted && isOnboarding) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    return secure(
+      NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin)),
+    );
   }
 
   // Admin role is enforced in app/admin/layout (requireAdmin) with a fresh DB
@@ -60,19 +70,23 @@ export async function middleware(req: NextRequest) {
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    return secure(NextResponse.redirect(loginUrl));
   }
 
   if (isOnboarding && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+    return secure(
+      NextResponse.redirect(new URL("/login", req.nextUrl.origin)),
+    );
   }
 
   if (isAuthRoute && isLoggedIn) {
     const destination = onboardingCompleted ? "/dashboard" : "/onboarding";
-    return NextResponse.redirect(new URL(destination, req.nextUrl.origin));
+    return secure(
+      NextResponse.redirect(new URL(destination, req.nextUrl.origin)),
+    );
   }
 
-  return NextResponse.next();
+  return secure(NextResponse.next());
 }
 
 export const config = {

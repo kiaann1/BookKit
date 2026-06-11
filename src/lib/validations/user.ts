@@ -48,6 +48,13 @@ export const userSettingsSchema = z.object({
     .optional(),
 });
 
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Enter your password to confirm deletion"),
+  confirm: z.literal(true, {
+    message: "Confirm that you want to permanently delete your account",
+  }),
+});
+
 export const onboardingSchema = z.object({
   firstName: z.string().trim().min(1).max(60),
   lastName: z.string().trim().min(1).max(60),
