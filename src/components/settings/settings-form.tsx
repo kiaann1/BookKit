@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AvatarSettings } from "@/components/settings/avatar-settings";
 import { GenrePicker } from "@/components/settings/genre-picker";
 import { Button } from "@/components/ui/button";
@@ -262,9 +263,17 @@ export function SettingsForm() {
         <p className="text-sm text-primary">Settings saved.</p>
       ) : null}
 
-      <Button type="submit" disabled={saving || genres.length === 0}>
-        {saving ? "Saving…" : "Save settings"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-4">
+        <Button type="submit" disabled={saving || genres.length === 0}>
+          {saving ? "Saving…" : "Save settings"}
+        </Button>
+        <Link
+          href="/settings/privacy"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          Privacy settings
+        </Link>
+      </div>
     </form>
   );
 }

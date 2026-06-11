@@ -56,7 +56,7 @@ export async function SiteHeader() {
                 </Link>
               )}
               <Link
-                href="/profile"
+                href={`/u/${session.user.username}`}
                 className="hidden rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/8 hover:text-foreground sm:inline"
               >
                 @{session.user.username}

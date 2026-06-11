@@ -25,6 +25,12 @@ enum ShelfStatus {
   DNF
 }
 
+enum FollowListVisibility {
+  PUBLIC
+  FOLLOWERS
+  ONLY_SELF
+}
+
 model User {
   id                    String    @id @default(cuid())
   email                 String    @unique
@@ -40,9 +46,11 @@ model User {
   genrePreferences      String[]  @default([])
   booksPerWeek          Int?
   onboardingCompletedAt DateTime?
-  role                  UserRole  @default(READER)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  isPrivate             Boolean              @default(false)
+  followersListVisibility FollowListVisibility @default(PUBLIC)
+  role                  UserRole             @default(READER)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   @@index([firstName, lastName])
 

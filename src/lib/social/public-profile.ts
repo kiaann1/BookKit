@@ -2,6 +2,10 @@ import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import { getFollowCounts, isFollowing } from "@/lib/social/follow";
 import { mapSocialAuthor } from "@/lib/social/map";
+import {
+  canViewFollowLists,
+  canViewFullProfile,
+} from "@/lib/social/privacy";
 import type { PublicProfile } from "@/lib/social/types";
 import { getShowcaseBooks, getUserShelf } from "@/lib/shelf";
 
@@ -25,6 +29,8 @@ export async function getPublicProfile(
       avatarUrl: true,
       genrePreferences: true,
       createdAt: true,
+      isPrivate: true,
+      followersListVisibility: true,
     },
   });
 
@@ -32,12 +38,19 @@ export async function getPublicProfile(
     return null;
   }
 
-  const [followCounts, following, showcase, shelf] = await Promise.all([
+  const [followCounts, following] = await Promise.all([
     getFollowCounts(user.id),
     isFollowing(viewerId, user.id),
-    getShowcaseBooks(user.id),
-    getUserShelf(user.id),
   ]);
+
+  const isSelf = user.id === viewerId;
+  const privacyContext = {
+    isPrivate: user.isPrivate,
+    followersListVisibility: user.followersListVisibility,
+    profileUserId: user.id,
+    viewerId,
+    isFollowing: following,
+  };
 
   const profile: PublicProfile = {
     ...mapSocialAuthor(user),
@@ -46,8 +59,24 @@ export async function getPublicProfile(
     createdAt: user.createdAt,
     followCounts,
     isFollowing: following,
-    isSelf: user.id === viewerId,
+    isSelf,
+    isPrivate: user.isPrivate,
+    canViewFullProfile: canViewFullProfile(privacyContext),
+    canViewFollowLists: canViewFollowLists(privacyContext),
   };
+
+  if (!profile.canViewFullProfile) {
+    return {
+      profile,
+      showcase: [],
+      shelf: [],
+    };
+  }
+
+  const [showcase, shelf] = await Promise.all([
+    getShowcaseBooks(user.id),
+    getUserShelf(user.id),
+  ]);
 
   const publicShelf = shelf.map((book) => ({
     id: book.id,

@@ -6,6 +6,7 @@ import { BookOpen, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { FeedView } from "@/components/social/feed-view";
+import { FollowCountLinks } from "@/components/social/follow-count-links";
 import { FollowButton } from "@/components/social/follow-button";
 import { ShowcaseGrid } from "@/components/profile/showcase-grid";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,9 @@ export default async function PublicProfilePage({
   }
 
   const { profile, showcase, shelf } = data;
-  const userPosts = await getUserPosts(username, viewer.userId, { limit: 10 });
+  const userPosts = profile.canViewFullProfile
+    ? await getUserPosts(username, viewer.userId, { limit: 10 })
+    : { posts: [], nextCursor: null };
 
   return (
     <FadeIn className="mx-auto max-w-3xl space-y-8">
@@ -83,13 +86,20 @@ export default async function PublicProfilePage({
                 </h2>
                 <p className="mt-1 text-muted-foreground">@{profile.username}</p>
               </div>
-              <div className="flex justify-center gap-2 sm:justify-end">
+              <div className="flex flex-wrap justify-center gap-2 sm:justify-end">
                 {profile.isSelf ? (
-                  <Link href="/profile">
-                    <Button variant="outline" size="sm">
-                      Edit profile
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/profile">
+                      <Button variant="outline" size="sm">
+                        Edit profile
+                      </Button>
+                    </Link>
+                    <Link href="/settings/privacy">
+                      <Button variant="outline" size="sm">
+                        Privacy
+                      </Button>
+                    </Link>
+                  </>
                 ) : (
                   <FollowButton
                     username={profile.username}
@@ -106,14 +116,21 @@ export default async function PublicProfilePage({
               </p>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm sm:justify-start">
-              <span>
-                <strong>{profile.followCounts.followers}</strong> followers
-              </span>
-              <span>
-                <strong>{profile.followCounts.following}</strong> following
-              </span>
+            <div className="mt-4">
+              <FollowCountLinks
+                username={profile.username}
+                followers={profile.followCounts.followers}
+                following={profile.followCounts.following}
+                canViewLists={profile.canViewFollowLists}
+              />
             </div>
+
+            {profile.isPrivate && !profile.canViewFullProfile ? (
+              <p className="mt-4 rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                This account is private. Follow @{profile.username} to see their
+                posts, bookshelf, and showcase.
+              </p>
+            ) : null}
 
             {profile.genrePreferences.length > 0 ? (
               <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
@@ -128,7 +145,7 @@ export default async function PublicProfilePage({
         </div>
       </section>
 
-      {showcase.length > 0 ? (
+      {profile.canViewFullProfile && showcase.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
@@ -138,7 +155,7 @@ export default async function PublicProfilePage({
         </section>
       ) : null}
 
-      {shelf.length > 0 ? (
+      {profile.canViewFullProfile && shelf.length > 0 ? (
         <section className="space-y-4">
           <h3 className="font-display text-lg font-semibold">Bookshelf</h3>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -175,14 +192,16 @@ export default async function PublicProfilePage({
         </section>
       ) : null}
 
-      <section className="space-y-4">
-        <h3 className="font-display text-lg font-semibold">Posts</h3>
-        <FeedView
-          initialPosts={userPosts.posts}
-          initialCursor={userPosts.nextCursor}
-          endpoint={`/api/users/${encodeURIComponent(username)}/posts`}
-        />
-      </section>
+      {profile.canViewFullProfile ? (
+        <section className="space-y-4">
+          <h3 className="font-display text-lg font-semibold">Posts</h3>
+          <FeedView
+            initialPosts={userPosts.posts}
+            initialCursor={userPosts.nextCursor}
+            endpoint={`/api/users/${encodeURIComponent(username)}/posts`}
+          />
+        </section>
+      ) : null}
     </FadeIn>
   );
 }

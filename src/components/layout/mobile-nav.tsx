@@ -122,7 +122,7 @@ export function MobileNav({ items, username, authDisabled }: MobileNavProps) {
               <div className="my-2 h-px bg-border" />
 
               <Link
-                href="/profile"
+                href={`/u/${username}`}
                 onClick={closeMenu}
                 className="block rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground"
               >

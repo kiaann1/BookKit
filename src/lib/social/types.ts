@@ -51,6 +51,9 @@ export type PublicProfile = {
   followCounts: FollowCounts;
   isFollowing: boolean;
   isSelf: boolean;
+  isPrivate: boolean;
+  canViewFullProfile: boolean;
+  canViewFollowLists: boolean;
 };
 
 export type UserSearchResult = SocialAuthor & {

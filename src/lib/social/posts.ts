@@ -2,7 +2,9 @@ import { unstable_noStore as noStore } from "next/cache";
 import { getPublishedBookById } from "@/lib/books";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { isFollowing } from "@/lib/social/follow";
 import { mapPostBook, mapSocialAuthor } from "@/lib/social/map";
+import { canViewFullProfile } from "@/lib/social/privacy";
 import type { CommentItem, FeedPage, PostItem } from "@/lib/social/types";
 
 const authorSelect = {
@@ -162,10 +164,27 @@ export async function getUserPosts(
 
   const user = await prisma.user.findUnique({
     where: { username: username.toLowerCase() },
-    select: { id: true },
+    select: {
+      id: true,
+      isPrivate: true,
+      followersListVisibility: true,
+    },
   });
 
   if (!user) {
+    return { posts: [], nextCursor: null };
+  }
+
+  const following = await isFollowing(viewerId, user.id);
+  const canView = canViewFullProfile({
+    isPrivate: user.isPrivate,
+    followersListVisibility: user.followersListVisibility,
+    profileUserId: user.id,
+    viewerId,
+    isFollowing: following,
+  });
+
+  if (!canView) {
     return { posts: [], nextCursor: null };
   }
 
