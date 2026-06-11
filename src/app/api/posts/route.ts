@@ -79,6 +79,9 @@ async function handleJsonPost(request: Request, userId: string) {
   }
 
   revalidatePath("/feed");
+  if (parsed.data.bookId) {
+    revalidatePath(`/catalog/${parsed.data.bookId}`);
+  }
   return NextResponse.json(result, { status: 201 });
 }
 
@@ -168,6 +171,9 @@ async function handleMultipartPost(request: Request, userId: string) {
   }
 
   revalidatePath("/feed");
+  if (parsed.data.bookId) {
+    revalidatePath(`/catalog/${parsed.data.bookId}`);
+  }
   return NextResponse.json({ postId: draft.postId }, { status: 201 });
 }
 

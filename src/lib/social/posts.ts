@@ -2,7 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { getPublishedBookById } from "@/lib/books";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
-import { isFollowing } from "@/lib/social/follow";
+import { getFollowingIds, isFollowing } from "@/lib/social/follow";
 import { mapPostBook, mapSocialAuthor } from "@/lib/social/map";
 import { canViewFullProfile } from "@/lib/social/privacy";
 import type { CreatePostInput } from "@/lib/validations/post";
@@ -111,16 +111,7 @@ export async function getFeedPosts(
     return { posts: [], nextCursor: null };
   }
 
-  const following = await prisma.follow.findMany({
-    where: { followerId: viewerId },
-    select: { followingId: true },
-  });
-
-  const authorIds = following.map((row) => row.followingId);
-
-  if (authorIds.length === 0) {
-    return { posts: [], nextCursor: null };
-  }
+  const followingIds = await getFollowingIds(viewerId);
 
   const cursorFilter = options.cursor
     ? {
@@ -132,13 +123,20 @@ export async function getFeedPosts(
           },
         ],
       }
-    : {};
+    : null;
+
+  const visibilityFilter = {
+    OR: [
+      { userId: viewerId },
+      { user: { isPrivate: false } },
+      { userId: { in: followingIds } },
+    ],
+  };
 
   const rows = await prisma.post.findMany({
-    where: {
-      userId: { in: authorIds },
-      ...cursorFilter,
-    },
+    where: cursorFilter
+      ? { AND: [cursorFilter, visibilityFilter] }
+      : visibilityFilter,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     include: {
@@ -154,6 +152,118 @@ export async function getFeedPosts(
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const posts = await mapPosts(pageRows, viewerId);
+
+  const last = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && last
+      ? `${last.createdAt.toISOString()}_${last.id}`
+      : null;
+
+  return { posts, nextCursor };
+}
+
+export async function getFriendsRecentPosts(
+  viewerId: string,
+  options: { limit?: number } = {},
+): Promise<PostItem[]> {
+  noStore();
+
+  const limit = options.limit ?? 5;
+
+  if (!(await isDatabaseAvailable())) {
+    return [];
+  }
+
+  const followingIds = await getFollowingIds(viewerId);
+  if (followingIds.length === 0) {
+    return [];
+  }
+
+  const rows = await prisma.post.findMany({
+    where: { userId: { in: followingIds } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+    include: {
+      user: { select: authorSelect },
+      _count: { select: { likes: true, comments: true } },
+      likes: {
+        where: { userId: viewerId },
+        select: { userId: true },
+      },
+    },
+  });
+
+  return mapPosts(rows, viewerId);
+}
+
+export async function getPostsByBookId(
+  bookId: string,
+  viewerId: string | null,
+  options: { cursor?: string; limit?: number } = {},
+): Promise<FeedPage> {
+  noStore();
+
+  const limit = options.limit ?? 20;
+
+  if (!(await isDatabaseAvailable())) {
+    return { posts: [], nextCursor: null };
+  }
+
+  const book = await getPublishedBookById(bookId);
+  if (!book) {
+    return { posts: [], nextCursor: null };
+  }
+
+  const followingIds = viewerId ? await getFollowingIds(viewerId) : [];
+
+  const cursorFilter = options.cursor
+    ? {
+        OR: [
+          { createdAt: { lt: new Date(options.cursor.split("_")[0]!) } },
+          {
+            createdAt: new Date(options.cursor.split("_")[0]!),
+            id: { lt: options.cursor.split("_")[1]! },
+          },
+        ],
+      }
+    : null;
+
+  const visibilityFilter = viewerId
+    ? {
+        OR: [
+          { userId: viewerId },
+          { user: { isPrivate: false } },
+          { userId: { in: followingIds } },
+        ],
+      }
+    : { user: { isPrivate: false } };
+
+  const rows = await prisma.post.findMany({
+    where: {
+      bookId: book.id,
+      ...(cursorFilter
+        ? { AND: [cursorFilter, visibilityFilter] }
+        : visibilityFilter),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: {
+      user: { select: authorSelect },
+      _count: { select: { likes: true, comments: true } },
+      ...(viewerId
+        ? {
+            likes: {
+              where: { userId: viewerId },
+              select: { userId: true },
+            },
+          }
+        : {}),
+    },
+  });
+
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const posts = await mapPosts(pageRows, viewerId ?? "");
 
   const last = pageRows[pageRows.length - 1];
   const nextCursor =

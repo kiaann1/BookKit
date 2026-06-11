@@ -27,13 +27,14 @@ export default async function FeedPage() {
           Feed
         </h1>
         <p className="text-xs text-muted-foreground">
-          From people you follow
+          Public posts from the community
         </p>
       </header>
 
       <FeedComposerPrompt />
 
       <FeedView
+        key={feed.posts.map((post) => post.id).join(",") || "empty"}
         initialPosts={feed.posts}
         initialCursor={feed.nextCursor}
         variant="timeline"

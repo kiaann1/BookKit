@@ -45,6 +45,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: result.error }, { status: 404 });
     }
 
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath(`/catalog/${bookId}`);
+
     return NextResponse.json({ entry: result.entry });
   } catch {
     return NextResponse.json(

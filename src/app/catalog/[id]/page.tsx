@@ -6,11 +6,13 @@ import { ArrowLeft, BookOpen, Calendar } from "lucide-react";
 import { FadeIn } from "@/components/motion/fade-in";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BookDiscussion } from "@/components/books/book-discussion";
 import { BookDetailMobileCta } from "@/components/books/book-detail-mobile-cta";
 import { ReadBookButton } from "@/components/books/read-book-button";
 import { ShelfActions } from "@/components/shelf/shelf-actions";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { getPublishedBookById } from "@/lib/books";
+import { getBookDiscussion } from "@/lib/books/discussion";
 import { catalogBookPath, resolveBookId } from "@/lib/books/paths";
 import { getReadingProgress } from "@/lib/progress";
 import { getShelfEntry } from "@/lib/shelf";
@@ -47,12 +49,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   }
 
   const user = await getAuthenticatedUser();
-  const [shelfEntry, progress] = user
-    ? await Promise.all([
-        getShelfEntry(user.userId, id),
-        getReadingProgress(user.userId, id),
-      ])
-    : [null, null];
+  const [shelfEntry, progress, discussion] = await Promise.all([
+    user ? getShelfEntry(user.userId, id) : Promise.resolve(null),
+    user ? getReadingProgress(user.userId, id) : Promise.resolve(null),
+    getBookDiscussion(id, user?.userId),
+  ]);
 
   return (
     <div className="main-with-sticky-cta mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10 md:pb-10">
@@ -213,6 +214,19 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             )}
           </div>
         </div>
+
+        <BookDiscussion
+          book={{
+            id: book.id,
+            title: book.title,
+            author: book.author,
+          }}
+          discussion={discussion}
+          isLoggedIn={Boolean(user)}
+          shelfStatus={shelfEntry?.status ?? null}
+          shelfRating={shelfEntry?.rating ?? null}
+          shelfReview={shelfEntry?.review ?? null}
+        />
       </FadeIn>
 
       <BookDetailMobileCta

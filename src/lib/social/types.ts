@@ -40,6 +40,24 @@ export type FeedPage = {
   nextCursor: string | null;
 };
 
+export type FriendReadingItem = {
+  reader: SocialAuthor;
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    coverUrl: string | null;
+  };
+  progressPercent: number | null;
+  lastReadAt: Date | null;
+};
+
+export type FriendsActivity = {
+  recentPosts: PostItem[];
+  friendsReading: FriendReadingItem[];
+  followingCount: number;
+};
+
 export type FollowCounts = {
   followers: number;
   following: number;

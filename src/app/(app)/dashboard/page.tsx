@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ContinueReadingCard } from "@/components/dashboard/continue-reading-card";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
+import { FriendsActivityWidgets } from "@/components/dashboard/friends-activity-widgets";
 import { RecommendationWidgets } from "@/components/dashboard/recommendation-widgets";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
@@ -30,10 +31,11 @@ export default async function DashboardPage() {
               ? `Hi, @${session.user.username}`
               : "Dashboard"
           }
-          description="Pick up where you left off or explore something new."
+          description="Pick up where you left off, see what friends are up to, or explore something new."
         />
       </FadeIn>
       <ContinueReadingCard book={continueReading} />
+      {user ? <FriendsActivityWidgets userId={user.userId} /> : null}
       {user ? <RecommendationWidgets userId={user.userId} /> : null}
       <DashboardCards />
     </div>

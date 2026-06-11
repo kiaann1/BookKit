@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+  BookOpen,
   FileText,
   ImageIcon,
   Search,
@@ -54,7 +55,7 @@ function bodyLimitForType(type: PostType) {
 
 export function ComposePostSheet() {
   const router = useRouter();
-  const { open, initialType, closeCompose } = useCompose();
+  const { open, initialType, initialBook, closeCompose } = useCompose();
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const [postType, setPostType] = useState<PostType>("TEXT");
@@ -71,9 +72,12 @@ export function ComposePostSheet() {
   useEffect(() => {
     if (open) {
       setPostType(initialType ?? "TEXT");
+      setSelectedBook(initialBook);
+      setBookQuery("");
+      setBookOptions([]);
       setError(null);
     }
-  }, [open, initialType]);
+  }, [open, initialType, initialBook]);
 
   useEffect(() => {
     if (!open) {
@@ -356,54 +360,67 @@ export function ComposePostSheet() {
               </p>
             </div>
 
-            {selectedBook ? (
-              <div className="flex items-center justify-between rounded-xl border border-border/80 bg-muted/30 px-3 py-2 text-sm">
-                <span>
-                  Tagged: <strong>{selectedBook.title}</strong> by{" "}
-                  {selectedBook.author}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedBook(null)}
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label="Remove tagged book"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Attach a book
               </div>
-            ) : (
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={bookQuery}
-                  onChange={(event) => setBookQuery(event.target.value)}
-                  placeholder="Tag a book (optional)"
-                  className="pl-9"
-                />
-                {bookOptions.length > 0 ? (
-                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-border/80 bg-card shadow-lg">
-                    {bookOptions.map((book) => (
-                      <button
-                        key={book.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
-                        onClick={() => {
-                          setSelectedBook(book);
-                          setBookQuery("");
-                          setBookOptions([]);
-                        }}
-                      >
-                        <span className="font-medium">{book.title}</span>
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {book.author}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            )}
+              <p className="mb-3 text-xs text-muted-foreground">
+                Let readers know which book you&apos;re talking about.
+              </p>
+
+              {selectedBook ? (
+                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                  <span>
+                    <strong>{selectedBook.title}</strong>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      by {selectedBook.author}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBook(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Remove attached book"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={bookQuery}
+                    onChange={(event) => setBookQuery(event.target.value)}
+                    placeholder="Search by title or author…"
+                    className="bg-background pl-9"
+                  />
+                  {bookOptions.length > 0 ? (
+                    <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-border/80 bg-card shadow-lg">
+                      {bookOptions.map((book) => (
+                        <button
+                          key={book.id}
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
+                          onClick={() => {
+                            setSelectedBook(book);
+                            setBookQuery("");
+                            setBookOptions([]);
+                          }}
+                        >
+                          <span className="font-medium">{book.title}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {book.author}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
 
           {error ? (

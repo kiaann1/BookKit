@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PostCard } from "@/components/social/post-card";
 import { Button } from "@/components/ui/button";
 import type { PostItem } from "@/lib/social/types";
@@ -22,6 +21,11 @@ export function FeedView({
   const [posts, setPosts] = useState(initialPosts);
   const [cursor, setCursor] = useState(initialCursor);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setPosts(initialPosts);
+    setCursor(initialCursor);
+  }, [initialPosts, initialCursor]);
 
   async function loadMore() {
     if (!cursor || loading) {
@@ -54,14 +58,8 @@ export function FeedView({
       <div className="px-6 py-16 text-center">
         <p className="font-medium">Nothing here yet</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Follow readers to see their posts in your feed.
+          When readers share posts, they&apos;ll show up here.
         </p>
-        <Link
-          href="/people"
-          className="mt-4 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Find readers
-        </Link>
       </div>
     );
   }
