@@ -1,6 +1,7 @@
 import { getPublishedBookById } from "@/lib/books";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { normalizeReadingProgress } from "@/lib/progress/normalize";
 import type { ReadingProgress, SaveProgressInput } from "@/lib/progress/types";
 import { ShelfStatus } from "@/lib/constants/shelf-status";
 import {
@@ -72,21 +73,30 @@ async function localSaveProgress(
   } satisfies ReadingProgress;
 }
 
+function normalizeSaveInput(input: SaveProgressInput): SaveProgressInput {
+  const totalPages = Math.max(1, input.totalPages);
+  const currentPage = Math.min(Math.max(1, input.currentPage), totalPages);
+
+  return { currentPage, totalPages };
+}
+
 export async function getReadingProgress(
   userId: string,
   bookId: string,
 ): Promise<ReadingProgress | null> {
   if (!(await isDatabaseAvailable())) {
     const entry = await localGetShelfEntry(userId, bookId);
-    if (!entry?.currentPage || !entry.totalPages) {
-      return null;
-    }
-    return {
-      currentPage: entry.currentPage,
-      totalPages: entry.totalPages,
-      progressPercent: entry.progressPercent ?? computePercent(entry.currentPage, entry.totalPages),
-      lastReadAt: entry.lastReadAt ?? entry.updatedAt,
-    };
+    return normalizeReadingProgress(
+      entry
+        ? {
+            currentPage: entry.currentPage ?? null,
+            totalPages: entry.totalPages ?? null,
+            progressPercent: entry.progressPercent ?? null,
+            lastReadAt: entry.lastReadAt ?? null,
+            updatedAt: entry.updatedAt,
+          }
+        : null,
+    );
   }
 
   try {
@@ -101,30 +111,101 @@ export async function getReadingProgress(
       },
     });
 
-    if (!row?.currentPage || !row.totalPages) {
-      return null;
-    }
-
-    return {
-      currentPage: row.currentPage,
-      totalPages: row.totalPages,
-      progressPercent:
-        row.progressPercent ??
-        computePercent(row.currentPage, row.totalPages),
-      lastReadAt: row.lastReadAt ?? row.updatedAt,
-    };
+    return normalizeReadingProgress(row);
   } catch {
     const entry = await localGetShelfEntry(userId, bookId);
-    if (!entry?.currentPage || !entry.totalPages) {
-      return null;
-    }
-    return {
-      currentPage: entry.currentPage,
-      totalPages: entry.totalPages,
-      progressPercent: entry.progressPercent ?? computePercent(entry.currentPage, entry.totalPages),
-      lastReadAt: entry.lastReadAt ?? entry.updatedAt,
-    };
+    return normalizeReadingProgress(
+      entry
+        ? {
+            currentPage: entry.currentPage ?? null,
+            totalPages: entry.totalPages ?? null,
+            progressPercent: entry.progressPercent ?? null,
+            lastReadAt: entry.lastReadAt ?? null,
+            updatedAt: entry.updatedAt,
+          }
+        : null,
+    );
   }
+}
+
+export async function getProgressForBooks(
+  userId: string,
+  bookIds: string[],
+): Promise<Map<string, ReadingProgress>> {
+  const uniqueIds = [...new Set(bookIds)];
+  const progress = new Map<string, ReadingProgress>();
+
+  if (uniqueIds.length === 0) {
+    return progress;
+  }
+
+  if (!(await isDatabaseAvailable())) {
+    const entries = await localGetShelfEntries(userId);
+    for (const entry of entries) {
+      if (!uniqueIds.includes(entry.bookId)) {
+        continue;
+      }
+
+      const normalized = normalizeReadingProgress({
+        currentPage: entry.currentPage ?? null,
+        totalPages: entry.totalPages ?? null,
+        progressPercent: entry.progressPercent ?? null,
+        lastReadAt: entry.lastReadAt ?? null,
+        updatedAt: entry.updatedAt,
+      });
+
+      if (normalized) {
+        progress.set(entry.bookId, normalized);
+      }
+    }
+
+    return progress;
+  }
+
+  try {
+    const rows = await prisma.userBook.findMany({
+      where: {
+        userId,
+        bookId: { in: uniqueIds },
+      },
+      select: {
+        bookId: true,
+        currentPage: true,
+        totalPages: true,
+        progressPercent: true,
+        lastReadAt: true,
+        updatedAt: true,
+      },
+    });
+
+    for (const row of rows) {
+      const normalized = normalizeReadingProgress(row);
+      if (normalized) {
+        progress.set(row.bookId, normalized);
+      }
+    }
+  } catch {
+    const entries = await localGetShelfEntries(userId);
+    for (const entry of entries) {
+      if (!uniqueIds.includes(entry.bookId)) {
+        continue;
+      }
+
+      const normalized = normalizeReadingProgress({
+        currentPage: entry.currentPage ?? null,
+        totalPages: entry.totalPages ?? null,
+        progressPercent: entry.progressPercent ?? null,
+        lastReadAt: entry.lastReadAt ?? null,
+        updatedAt: entry.updatedAt,
+      });
+
+      if (normalized) {
+        progress.set(entry.bookId, normalized);
+      }
+    }
+  }
+
+  return progress;
 }
 
 export async function saveReadingProgress(
@@ -137,11 +218,15 @@ export async function saveReadingProgress(
     return { error: "Book not found" as const };
   }
 
-  const progressPercent = computePercent(input.currentPage, input.totalPages);
+  const normalized = normalizeSaveInput(input);
+  const progressPercent = computePercent(
+    normalized.currentPage,
+    normalized.totalPages,
+  );
   const now = new Date();
 
   if (!(await isDatabaseAvailable())) {
-    const progress = await localSaveProgress(userId, bookId, input);
+    const progress = await localSaveProgress(userId, bookId, normalized);
     return { progress };
   }
 
@@ -157,8 +242,8 @@ export async function saveReadingProgress(
           bookId,
           status: ShelfStatus.CURRENTLY_READING,
           startedAt: now,
-          currentPage: input.currentPage,
-          totalPages: input.totalPages,
+          currentPage: normalized.currentPage,
+          totalPages: normalized.totalPages,
           progressPercent,
           lastReadAt: now,
         },
@@ -167,8 +252,8 @@ export async function saveReadingProgress(
       await prisma.userBook.update({
         where: { userId_bookId: { userId, bookId } },
         data: {
-          currentPage: input.currentPage,
-          totalPages: input.totalPages,
+          currentPage: normalized.currentPage,
+          totalPages: normalized.totalPages,
           progressPercent,
           lastReadAt: now,
           ...(existing.status === ShelfStatus.WANT_TO_READ
@@ -180,14 +265,14 @@ export async function saveReadingProgress(
 
     return {
       progress: {
-        currentPage: input.currentPage,
-        totalPages: input.totalPages,
+        currentPage: normalized.currentPage,
+        totalPages: normalized.totalPages,
         progressPercent,
         lastReadAt: now,
       } satisfies ReadingProgress,
     };
   } catch {
-    const progress = await localSaveProgress(userId, bookId, input);
+    const progress = await localSaveProgress(userId, bookId, normalized);
     return { progress };
   }
 }

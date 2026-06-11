@@ -14,6 +14,7 @@ import {
   bookPdfKey,
   coverExtensionFromMime,
 } from "@/lib/storage/keys";
+import { isValidPdfBuffer } from "@/lib/files/pdf-validation";
 import { deleteFile, fileExists, readFile, uploadFile } from "@/lib/storage";
 import {
   ALLOWED_COVER_TYPES,
@@ -67,10 +68,6 @@ function validateCover(file: File | null) {
     return "Cover must be under 5 MB";
   }
   return null;
-}
-
-function isValidPdfBuffer(buffer: Buffer) {
-  return buffer.byteLength >= 5 && buffer.subarray(0, 5).toString("utf8") === "%PDF-";
 }
 
 async function uniqueStorageBookId(title: string, author?: string) {

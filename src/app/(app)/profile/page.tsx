@@ -78,6 +78,16 @@ export default async function ProfilePage() {
                 </p>
               )}
 
+              {profile.genrePreferences.length > 0 ? (
+                <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
+                  {profile.genrePreferences.map((genre) => (
+                    <Badge key={genre} variant="default">
+                      {genre}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
                 <Badge variant="muted">{profile.shelfStats.total} on shelf</Badge>
                 {Object.entries(profile.shelfStats.counts).map(([status, count]) => (
@@ -87,12 +97,19 @@ export default async function ProfilePage() {
                 ))}
               </div>
 
-              <Link href="/shelf" className="mt-5 inline-block">
-                <Button variant="outline" size="sm">
-                  <Library className="h-4 w-4" />
-                  View bookshelf
-                </Button>
-              </Link>
+              <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
+                <Link href="/shelf">
+                  <Button variant="outline" size="sm">
+                    <Library className="h-4 w-4" />
+                    View bookshelf
+                  </Button>
+                </Link>
+                <Link href="/settings">
+                  <Button variant="outline" size="sm">
+                    Edit settings
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </CardContent>

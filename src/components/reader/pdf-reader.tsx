@@ -146,6 +146,7 @@ export function PdfReader({
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -442,7 +443,13 @@ export function PdfReader({
     return () => {
       cancelled = true;
     };
-  }, [pdfUrl, initialPage]);
+  }, [pdfUrl, initialPage, reloadToken]);
+
+  function retryLoad() {
+    setError(null);
+    setIsLoading(true);
+    setReloadToken((value) => value + 1);
+  }
 
   useEffect(() => {
     if (!isMobile) {
@@ -910,10 +917,13 @@ export function PdfReader({
           </div>
         ) : error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-            <p className="text-sm">{error}</p>
-            <Link href={catalogBookPath(bookId)}>
-              <Button variant="outline">Back to book</Button>
-            </Link>
+            <p className="max-w-md text-sm">{error}</p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button onClick={retryLoad}>Try again</Button>
+              <Link href={catalogBookPath(bookId)}>
+                <Button variant="outline">Back to book</Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <div

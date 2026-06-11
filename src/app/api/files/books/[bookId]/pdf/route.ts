@@ -4,6 +4,7 @@ import { resolveBookId } from "@/lib/books/paths";
 import { getPublishedBookPdfKey } from "@/lib/books/pdf";
 import { pdfRangeFromLocalKey } from "@/lib/files/pdf-range-local";
 import { pdfRangeResponse } from "@/lib/files/pdf-response";
+import { isValidPdfBuffer } from "@/lib/files/pdf-validation";
 import { getStorageDriver, readFile } from "@/lib/storage";
 import { isBlobConfigured, streamBlobForRequest } from "@/lib/storage/blob";
 import { getS3SignedUrl } from "@/lib/storage/s3";
@@ -27,8 +28,18 @@ async function servePdf(pdfKey: string, request: Request) {
   }
 
   if (driver === "blob") {
+    if (request.headers.get("range")) {
+      const streamed = await streamBlobForRequest(pdfKey, request);
+      if (streamed) {
+        return streamed;
+      }
+    }
+
     const blobFile = await readFile(pdfKey);
     if (blobFile) {
+      if (!isValidPdfBuffer(blobFile)) {
+        return null;
+      }
       return pdfRangeResponse(blobFile, request);
     }
 
@@ -45,6 +56,9 @@ async function servePdf(pdfKey: string, request: Request) {
 
   const file = await readFile(pdfKey);
   if (file) {
+    if (!isValidPdfBuffer(file)) {
+      return null;
+    }
     return pdfRangeResponse(file, request);
   }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ContinueReadingCard } from "@/components/dashboard/continue-reading-card";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
+import { RecommendationWidgets } from "@/components/dashboard/recommendation-widgets";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
         />
       </FadeIn>
       <ContinueReadingCard book={continueReading} />
+      {user ? <RecommendationWidgets userId={user.userId} /> : null}
       <DashboardCards />
     </div>
   );

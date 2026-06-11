@@ -2,7 +2,7 @@
 
 > A bookish social reading platform combining a personal bookshelf, in-browser reading, recommendations, and community features — inspired by Fable, Goodreads, and Kindle.
 
-**Status:** Phase 2 complete (bookshelf & showcase) — Phase 3+ in progress  
+**Status:** Phase 4 complete (genres & recommendations) — Phase 5+ in progress  
 **Initial platform:** Web (responsive)  
 **Future platform:** Native mobile app (iOS / Android)
 
@@ -279,14 +279,17 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 **Goal:** Read in-browser and resume where you left off.
 
-- [ ] Integrate PDF.js reader component
-- [ ] Secure PDF delivery (signed URLs, auth check)
-- [ ] Auto-save reading progress (page/percentage)
-- [ ] "Continue reading" on dashboard and book cards
-- [ ] Reader UX: zoom, page nav, mobile-friendly controls
-- [ ] Dark mode for reader (stretch)
+- [x] Integrate PDF.js reader component
+- [x] Secure PDF delivery (auth-gated API; S3 signed URLs / Blob range streaming)
+- [x] Auto-save reading progress (page/percentage)
+- [x] "Continue reading" on dashboard, catalog detail, shelf cards, and catalog grid
+- [x] Reader UX: zoom, page nav, pinch-to-zoom, mobile-friendly controls
+- [x] Dark mode and lights-off for reader
+- [ ] Reader bookmarks (stretch — deferred)
 
 **Exit criteria:** Close tab mid-book, return later, land on same page.
+
+**Verify:** `npm run verify:phase3` locally or `GET /api/health/phase3` on deploy.
 
 ---
 
@@ -294,12 +297,17 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 **Goal:** Discovery beyond browsing.
 
-- [ ] Genre preference picker (onboarding + settings)
-- [ ] Rule-based recommendations: same genres, exclude already-read
-- [ ] Recommendations page + widgets on home
-- [ ] "New in your genres" when admins add books
+- [x] Genre preference picker (onboarding + settings)
+- [x] Rule-based recommendations: genre overlap, deprioritize READ/DNF, exclude on-shelf
+- [x] Recommendations page (`/recommendations`) + dashboard widgets
+- [x] "New in your genres" row (recent books matching prefs)
+- [x] Cold start — recently added when no genre prefs
 
-**Exit criteria:** User with genre prefs sees relevant unread books.
+**Exit criteria:** User with genre prefs sees relevant unread books on Discover and dashboard.
+
+**API:** `GET /api/recommendations`, `GET`/`PATCH` `/api/user/settings`
+
+**Verify:** `npm run verify:phase4`, `npm run test:recommendations`, or `GET /api/health/phase4`
 
 ---
 

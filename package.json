@@ -17,6 +17,9 @@
     "db:upload-files": "npx tsx scripts/sync-storage-to-db.ts --files-only",
     "db:backfill-cover-keys": "npx tsx scripts/sync-storage-to-db.ts --backfill-cover-keys",
     "verify:phase1": "npx tsx scripts/verify-phase1.ts",
+    "verify:phase3": "npx tsx scripts/verify-phase3.ts",
+    "verify:phase4": "npx tsx scripts/verify-phase4.ts",
+    "test:recommendations": "npx tsx scripts/test-recommendations.ts",
     "postinstall": "node scripts/copy-pdf-worker.mjs"
   },
   "prisma": {

@@ -1,6 +1,8 @@
 import { BookCard } from "@/components/books/book-card";
 import { CatalogFilters } from "@/components/books/catalog-filters";
+import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { getCatalogData } from "@/lib/books";
+import { getProgressForBooks } from "@/lib/progress";
 import { Library } from "lucide-react";
 
 type CatalogResultsProps = {
@@ -9,7 +11,17 @@ type CatalogResultsProps = {
 };
 
 export async function CatalogResults({ q, genre }: CatalogResultsProps) {
-  const { books, genreOptions } = await getCatalogData({ q, genre });
+  const [{ books, genreOptions }, user] = await Promise.all([
+    getCatalogData({ q, genre }),
+    getAuthenticatedUser(),
+  ]);
+
+  const progressByBookId = user
+    ? await getProgressForBooks(
+        user.userId,
+        books.map((book) => book.id),
+      )
+    : new Map();
 
   return (
     <>
@@ -32,7 +44,11 @@ export async function CatalogResults({ q, genre }: CatalogResultsProps) {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           {books.map((book) => (
-            <BookCard key={book.id} book={book} />
+            <BookCard
+              key={book.id}
+              book={book}
+              progress={progressByBookId.get(book.id)}
+            />
           ))}
         </div>
       )}
