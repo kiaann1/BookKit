@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BookStatus } from "@/lib/constants/book-status";
 import { BOOK_GENRES } from "@/lib/constants/genres";
 import { Button } from "@/components/ui/button";
+import { FileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -235,21 +236,21 @@ export function BookForm({ mode, bookId, initialValues }: BookFormProps) {
           <Label htmlFor="pdf">
             PDF {mode === "edit" && "(leave empty to keep current)"}
           </Label>
-          <Input
+          <FileInput
             id="pdf"
-            type="file"
             accept="application/pdf"
             required={mode === "create"}
-            onChange={(event) => setPdf(event.target.files?.[0] ?? null)}
+            fileName={pdf?.name}
+            onFileChange={setPdf}
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="cover">Cover image (optional)</Label>
-          <Input
+          <FileInput
             id="cover"
-            type="file"
             accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setCover(event.target.files?.[0] ?? null)}
+            fileName={cover?.name}
+            onFileChange={setCover}
           />
         </div>
       </div>
