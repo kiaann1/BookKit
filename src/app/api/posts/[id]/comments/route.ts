@@ -5,14 +5,21 @@ import { createCommentSchema } from "@/lib/validations/post";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const auth = await getAuthenticatedUser();
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await context.params;
-  const comments = await getPostComments(id);
+  const { searchParams } = new URL(request.url);
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+
+  const comments = await getPostComments(
+    id,
+    limit && limit > 0 ? { limit } : undefined,
+  );
   return NextResponse.json({ comments });
 }
 

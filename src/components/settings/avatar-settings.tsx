@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prepareAvatarForUpload } from "@/lib/images/prepare-avatar";
@@ -15,10 +16,15 @@ export function AvatarSettings({
   initialAvatarUrl,
   displayName,
 }: AvatarSettingsProps) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAvatarUrl(initialAvatarUrl);
+  }, [initialAvatarUrl]);
 
   async function uploadAvatar(file: File) {
     setError(null);
@@ -41,6 +47,7 @@ export function AvatarSettings({
       }
 
       setAvatarUrl(data.avatarUrl ?? null);
+      router.refresh();
     } catch {
       setError("Could not upload photo.");
     } finally {
@@ -59,6 +66,7 @@ export function AvatarSettings({
         return;
       }
       setAvatarUrl(null);
+      router.refresh();
     } finally {
       setLoading(false);
     }

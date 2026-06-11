@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FeedComposerPrompt } from "@/components/social/feed-composer-prompt";
 import { FeedView } from "@/components/social/feed-view";
-import { UserSearch } from "@/components/social/user-search";
-import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
@@ -22,26 +21,23 @@ export default async function FeedPage() {
     : { posts: [], nextCursor: null };
 
   return (
-    <FadeIn className="mx-auto max-w-2xl space-y-6">
-      <PageHeader
-        title="Feed"
-        description="Posts from people you follow — reviews, thoughts, and reading updates."
+    <FadeIn className="mx-auto min-h-full max-w-xl">
+      <header className="sticky top-14 z-20 border-b border-border/80 bg-background/95 px-4 py-3 backdrop-blur-xl safe-top">
+        <h1 className="font-display text-lg font-semibold tracking-tight">
+          Feed
+        </h1>
+        <p className="text-xs text-muted-foreground">
+          From people you follow
+        </p>
+      </header>
+
+      <FeedComposerPrompt />
+
+      <FeedView
+        initialPosts={feed.posts}
+        initialCursor={feed.nextCursor}
+        variant="timeline"
       />
-
-      <section className="space-y-2 rounded-2xl border border-border/80 bg-card p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium">Find readers</h2>
-          <Link
-            href="/people"
-            className="text-xs text-primary underline-offset-4 hover:underline"
-          >
-            Browse all
-          </Link>
-        </div>
-        <UserSearch variant="compact" />
-      </section>
-
-      <FeedView initialPosts={feed.posts} initialCursor={feed.nextCursor} />
     </FadeIn>
   );
 }

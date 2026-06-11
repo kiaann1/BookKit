@@ -116,7 +116,11 @@ export async function getFeedPosts(
     select: { followingId: true },
   });
 
-  const authorIds = [...new Set([viewerId, ...following.map((f) => f.followingId)])];
+  const authorIds = following.map((row) => row.followingId);
+
+  if (authorIds.length === 0) {
+    return { posts: [], nextCursor: null };
+  }
 
   const cursorFilter = options.cursor
     ? {
@@ -270,23 +274,93 @@ export async function togglePostLike(postId: string, userId: string) {
   return { liked: true };
 }
 
-export async function getPostComments(postId: string) {
+export async function getPostComments(
+  postId: string,
+  options?: { limit?: number },
+) {
   if (!(await isDatabaseAvailable())) {
     return [] as CommentItem[];
   }
 
+  const limit = options?.limit;
+
   const rows = await prisma.comment.findMany({
     where: { postId },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: limit ? "desc" : "asc" },
+    ...(limit ? { take: limit } : {}),
     include: { user: { select: authorSelect } },
   });
 
-  return rows.map((row) => ({
+  const ordered = limit ? [...rows].reverse() : rows;
+
+  return ordered.map((row) => ({
     id: row.id,
     body: row.body,
     createdAt: row.createdAt,
     author: mapSocialAuthor(row.user),
   }));
+}
+
+export async function getPostById(postId: string, viewerId: string) {
+  noStore();
+
+  if (!(await isDatabaseAvailable())) {
+    return null;
+  }
+
+  const row = await prisma.post.findUnique({
+    where: { id: postId },
+    include: {
+      user: { select: authorSelect },
+      _count: { select: { likes: true, comments: true } },
+      likes: {
+        where: { userId: viewerId },
+        select: { userId: true },
+      },
+    },
+  });
+
+  if (!row) {
+    return null;
+  }
+
+  const author = await prisma.user.findUnique({
+    where: { id: row.userId },
+    select: {
+      id: true,
+      isPrivate: true,
+      followersListVisibility: true,
+    },
+  });
+
+  if (!author) {
+    return null;
+  }
+
+  const following = await isFollowing(viewerId, row.userId);
+  const canView = canViewFullProfile({
+    isPrivate: author.isPrivate,
+    followersListVisibility: author.followersListVisibility,
+    profileUserId: row.userId,
+    viewerId,
+    isFollowing: following,
+  });
+
+  if (!canView) {
+    return null;
+  }
+
+  const [post] = await mapPosts(
+    [
+      {
+        ...row,
+        bookId: row.bookId,
+      },
+    ],
+    viewerId,
+  );
+
+  return post ?? null;
 }
 
 export async function createComment(
@@ -318,7 +392,8 @@ export async function createComment(
 export async function reportPost(
   postId: string,
   reporterId: string,
-  reason?: string | null,
+  reason: string,
+  details?: string | null,
 ) {
   if (!(await isDatabaseAvailable())) {
     return { error: "Database unavailable" as const };
@@ -337,8 +412,18 @@ export async function reportPost(
     where: {
       postId_reporterId: { postId, reporterId },
     },
-    create: { postId, reporterId, reason: reason?.trim() || null },
-    update: { reason: reason?.trim() || null },
+    create: {
+      postId,
+      reporterId,
+      reason: details?.trim()
+        ? `${reason}: ${details.trim()}`
+        : reason,
+    },
+    update: {
+      reason: details?.trim()
+        ? `${reason}: ${details.trim()}`
+        : reason,
+    },
   });
 
   return { success: true as const };

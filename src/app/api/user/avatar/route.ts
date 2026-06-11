@@ -4,6 +4,7 @@ import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import {
   deleteStoredAvatars,
+  getAvatarApiUrl,
   isAllowedAvatarFile,
   resolveAvatarExtension,
 } from "@/lib/storage/avatar";
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
             ? "image/webp"
             : "image/jpeg";
 
-    const uploadResult = await uploadFile({
+    await uploadFile({
       key,
       body,
       contentType,
@@ -71,8 +72,9 @@ export async function POST(request: Request) {
       ),
     );
 
-    const avatarUrl =
-      uploadResult.publicUrl ?? `/api/files/avatars/${auth.userId}`;
+    // Always store the proxied API URL — private Vercel Blob URLs are not
+    // loadable directly in the browser.
+    const avatarUrl = getAvatarApiUrl(auth.userId, Date.now());
 
     if (await isDatabaseAvailable()) {
       try {

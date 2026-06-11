@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { resolveAvatarUrl } from "@/lib/storage/avatar";
 import { userSettingsSchema } from "@/lib/validations/user";
 
 async function requireDatabase() {
@@ -49,7 +50,12 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ user });
+  return NextResponse.json({
+    user: {
+      ...user,
+      avatarUrl: resolveAvatarUrl(auth.userId, user.avatarUrl),
+    },
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -135,7 +141,12 @@ export async function PATCH(request: Request) {
     revalidatePath(`/u/${user.username}`);
     revalidatePath("/feed");
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user: {
+        ...user,
+        avatarUrl: resolveAvatarUrl(auth.userId, user.avatarUrl),
+      },
+    });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

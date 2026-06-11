@@ -86,3 +86,21 @@ export function avatarContentType(extension: string) {
   }
   return "image/jpeg";
 }
+
+/** Browser-safe avatar URL — proxies private Blob / local files through our API. */
+export function getAvatarApiUrl(userId: string, version?: string | number) {
+  const base = `/api/files/avatars/${encodeURIComponent(userId)}`;
+  return version !== undefined ? `${base}?v=${version}` : base;
+}
+
+export function resolveAvatarUrl(
+  userId: string,
+  storedUrl: string | null | undefined,
+): string | null {
+  if (!storedUrl) {
+    return null;
+  }
+
+  const version = storedUrl.match(/[?&]v=(\d+)/)?.[1];
+  return getAvatarApiUrl(userId, version);
+}

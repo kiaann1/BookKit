@@ -28,7 +28,12 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const result = await reportPost(id, auth.userId, parsed.data.reason);
+  const result = await reportPost(
+    id,
+    auth.userId,
+    parsed.data.reason,
+    parsed.data.details,
+  );
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

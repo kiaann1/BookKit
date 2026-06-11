@@ -1,5 +1,6 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { resolveAvatarUrl } from "@/lib/storage/avatar";
 import { getShelfStatusCounts, getShowcaseBooks } from "@/lib/shelf";
 
 export async function getUserProfile(userId: string) {
@@ -32,6 +33,7 @@ export async function getUserProfile(userId: string) {
 
     return {
       ...user,
+      avatarUrl: resolveAvatarUrl(user.id, user.avatarUrl),
       showcase,
       shelfStats,
     };

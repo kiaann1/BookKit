@@ -13,6 +13,7 @@ const protectedRoutes = [
   "/profile",
   "/settings",
   "/u",
+  "/posts",
   "/admin",
 ];
 
@@ -86,6 +87,7 @@ export const config = {
     "/profile/:path*",
     "/settings/:path*",
     "/u/:path*",
+    "/posts/:path*",
     "/admin",
     "/admin/:path*",
     "/onboarding/:path*",

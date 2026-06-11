@@ -143,7 +143,7 @@ Shipped — see **Completed work** above. Push notifications for new books defer
 
 - Shelf reviews: **private** (not shown on public profile)
 - Posts: **plain text** only
-- Feed: **following-only** (+ own posts)
+- Feed: **following-only** (not your own posts)
 - Messaging: **deferred** — direct messages planned for Phase 7+
 
 ### Exit criteria

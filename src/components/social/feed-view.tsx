@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { PostCard } from "@/components/social/post-card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,14 @@ type FeedViewProps = {
   initialPosts: PostItem[];
   initialCursor: string | null;
   endpoint?: string;
+  variant?: "cards" | "timeline";
 };
 
 export function FeedView({
   initialPosts,
   initialCursor,
   endpoint = "/api/posts",
+  variant = "cards",
 }: FeedViewProps) {
   const [posts, setPosts] = useState(initialPosts);
   const [cursor, setCursor] = useState(initialCursor);
@@ -48,11 +51,41 @@ export function FeedView({
 
   if (posts.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-primary/25 bg-primary/5 px-6 py-12 text-center">
-        <p className="font-medium">Your feed is quiet</p>
+      <div className="px-6 py-16 text-center">
+        <p className="font-medium">Nothing here yet</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Follow readers and post about a book to see activity here.
+          Follow readers to see their posts in your feed.
         </p>
+        <Link
+          href="/people"
+          className="mt-4 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Find readers
+        </Link>
+      </div>
+    );
+  }
+
+  if (variant === "timeline") {
+    return (
+      <div>
+        {posts.map((post) => (
+          <PostCard key={post.id} post={post} variant="timeline" />
+        ))}
+
+        {cursor ? (
+          <div className="flex justify-center border-t border-border/80 py-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={loading}
+              onClick={() => void loadMore()}
+            >
+              {loading ? "Loading…" : "Show more"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   }

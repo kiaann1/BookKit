@@ -215,17 +215,17 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         </div>
       </FadeIn>
 
-      {user && (
-        <BookDetailMobileCta
-          bookId={book.id}
-          initialStatus={shelfEntry?.status ?? null}
-          label={
-            progress && progress.progressPercent > 0
-              ? "Continue reading"
-              : "Start reading"
-          }
-        />
-      )}
+      <BookDetailMobileCta
+        bookId={book.id}
+        bookTitle={book.title}
+        initialStatus={shelfEntry?.status ?? null}
+        isLoggedIn={Boolean(user)}
+        label={
+          progress && progress.progressPercent > 0
+            ? "Continue reading"
+            : "Start reading"
+        }
+      />
     </div>
   );
 }

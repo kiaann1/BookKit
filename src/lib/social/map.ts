@@ -1,5 +1,6 @@
 import type { PostBookTag, SocialAuthor } from "@/lib/social/types";
 import { getCoverApiUrl } from "@/lib/storage";
+import { resolveAvatarUrl } from "@/lib/storage/avatar";
 
 export function mapSocialAuthor(user: {
   id: string;
@@ -18,7 +19,7 @@ export function mapSocialAuthor(user: {
     id: user.id,
     username: user.username,
     displayName,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: resolveAvatarUrl(user.id, user.avatarUrl),
   };
 }
 

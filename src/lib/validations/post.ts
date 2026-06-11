@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { POST_REPORT_REASONS } from "@/lib/constants/report-reasons";
+
+const reportReasonValues = POST_REPORT_REASONS.map((reason) => reason.value);
 import {
   ARTICLE_BODY_MAX_CHARS,
   ARTICLE_TITLE_MAX_CHARS,
@@ -141,7 +144,8 @@ export const createCommentSchema = z.object({
 });
 
 export const reportPostSchema = z.object({
-  reason: z.string().trim().max(500).optional().nullable(),
+  reason: z.enum(reportReasonValues),
+  details: z.string().trim().max(500).optional().nullable(),
 });
 
 export const feedQuerySchema = z.object({

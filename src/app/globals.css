@@ -95,12 +95,27 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+:root {
+  --mobile-nav-height: 3.75rem;
+  --book-detail-cta-height: 12.5rem;
+}
+
 .main-with-mobile-nav {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(
+    var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px)
+  );
 }
 
 .main-with-sticky-cta {
-  padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(
+    var(--book-detail-cta-height) + env(safe-area-inset-bottom, 0px)
+  );
+}
+
+.book-detail-mobile-cta {
+  bottom: calc(
+    var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px)
+  );
 }
 
 @media (min-width: 768px) {

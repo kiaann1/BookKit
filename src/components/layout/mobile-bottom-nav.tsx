@@ -25,11 +25,7 @@ const hiddenPrefixes = [
 ];
 
 function shouldHideNav(pathname: string) {
-  if (hiddenPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return true;
-  }
-
-  return /^\/catalog\/[^/]+$/.test(pathname);
+  return hiddenPrefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
 function NavTab({

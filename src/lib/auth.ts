@@ -4,6 +4,7 @@ import { UserRole } from "@prisma/client";
 import { compare } from "bcryptjs";
 import { isBootstrapAdminEmail } from "@/lib/auth/bootstrap-admins";
 import { prisma } from "@/lib/db";
+import { resolveAvatarUrl } from "@/lib/storage/avatar";
 import { loginSchema } from "@/lib/validations/auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -53,7 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name:
             user.name ??
             (`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.username),
-          image: user.avatarUrl,
+          image: resolveAvatarUrl(user.id, user.avatarUrl),
           username: user.username,
           role,
           onboardingCompleted: Boolean(user.onboardingCompletedAt),
