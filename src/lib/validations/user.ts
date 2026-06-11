@@ -36,6 +36,7 @@ const genrePreferencesSchema = z
 export const userSettingsSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
+  username: usernameSchema.optional(),
   bio: z.string().trim().max(500).nullable().optional(),
   genrePreferences: genrePreferencesSchema.optional(),
   booksPerWeek: z

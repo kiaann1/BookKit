@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
@@ -38,6 +39,7 @@ export async function GET() {
       name: true,
       username: true,
       bio: true,
+      avatarUrl: true,
       genrePreferences: true,
       booksPerWeek: true,
     },
@@ -83,12 +85,27 @@ export async function PATCH(request: Request) {
       ? [data.firstName, data.lastName].filter(Boolean).join(" ").trim()
       : undefined;
 
+  if (data.username) {
+    const existingUsername = await prisma.user.findUnique({
+      where: { username: data.username },
+      select: { id: true },
+    });
+
+    if (existingUsername && existingUsername.id !== auth.userId) {
+      return NextResponse.json(
+        { error: { username: ["That username is already taken."] } },
+        { status: 409 },
+      );
+    }
+  }
+
   try {
     const user = await prisma.user.update({
       where: { id: auth.userId },
       data: {
         ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
         ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+        ...(data.username !== undefined ? { username: data.username } : {}),
         ...(displayName !== undefined
           ? { name: displayName || null }
           : {}),
@@ -106,6 +123,7 @@ export async function PATCH(request: Request) {
         name: true,
         username: true,
         bio: true,
+        avatarUrl: true,
         genrePreferences: true,
         booksPerWeek: true,
       },
@@ -114,9 +132,21 @@ export async function PATCH(request: Request) {
     revalidatePath("/dashboard");
     revalidatePath("/recommendations");
     revalidatePath("/profile");
+    revalidatePath(`/u/${user.username}`);
+    revalidatePath("/feed");
 
     return NextResponse.json({ user });
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: { username: ["That username is already taken."] } },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json(
       { error: "Could not save settings. Please try again." },
       { status: 500 },

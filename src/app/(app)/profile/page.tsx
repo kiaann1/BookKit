@@ -98,6 +98,12 @@ export default async function ProfilePage() {
               </div>
 
               <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
+                <Link href={`/u/${profile.username}`}>
+                  <Button variant="outline" size="sm">
+                    <UserRound className="h-4 w-4" />
+                    Public profile
+                  </Button>
+                </Link>
                 <Link href="/shelf">
                   <Button variant="outline" size="sm">
                     <Library className="h-4 w-4" />

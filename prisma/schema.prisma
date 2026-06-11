@@ -46,10 +46,16 @@ model User {
 
   @@index([firstName, lastName])
 
-  accounts  Account[]
-  sessions  Session[]
-  books     Book[]
-  shelf     UserBook[]
+  accounts       Account[]
+  sessions       Session[]
+  books          Book[]
+  shelf          UserBook[]
+  posts          Post[]
+  postLikes      PostLike[]
+  comments       Comment[]
+  postReports    PostReport[] @relation("PostReports")
+  followers      Follow[]     @relation("Following")
+  following      Follow[]     @relation("Follower")
 }
 
 model Book {
@@ -70,6 +76,7 @@ model Book {
   updatedAt    DateTime   @updatedAt
 
   shelfEntries UserBook[]
+  posts        Post[]
 
   @@index([status])
   @@index([title])
@@ -135,6 +142,77 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  userId    String
+  body      String   @db.Text
+  bookId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book     Book?        @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  likes    PostLike[]
+  comments Comment[]
+  reports  PostReport[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model PostLike {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model PostReport {
+  id         String   @id @default(cuid())
+  postId     String
+  reporterId String
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter User @relation("PostReports", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, reporterId])
+  @@index([postId])
 }
 
 model PasswordResetToken {

@@ -2,7 +2,7 @@
 
 > A bookish social reading platform combining a personal bookshelf, in-browser reading, recommendations, and community features — inspired by Fable, Goodreads, and Kindle.
 
-**Status:** Phase 4 complete (genres & recommendations) — Phase 5+ in progress  
+**Status:** Phase 5 complete (social core) — Phase 6+ in progress  
 **Initial platform:** Web (responsive)  
 **Future platform:** Native mobile app (iOS / Android)
 
@@ -311,18 +311,26 @@ These are suggestions — pick one cohesive stack and stay consistent.
 
 ---
 
-### Phase 5 — Social Core (Weeks 12–15)
+### Phase 5 — Social Core (Weeks 12–15) ✅
 
 **Goal:** Profiles, follows, and feed.
 
-- [ ] Public profile pages (shelf, showcase, bio)
-- [ ] Follow / unfollow
-- [ ] Create posts (text + optional book tag)
-- [ ] Home feed from followed users
-- [ ] Likes and comments (MVP)
-- [ ] Basic moderation: report post
+- [x] Public profile pages (`/u/[username]` — shelf, showcase, bio, follower counts)
+- [x] Follow / unfollow (`/api/users/[username]/follow`)
+- [x] Create posts (plain text + optional book tag via catalog search)
+- [x] Home feed from followed users (`/feed`, `GET /api/posts`)
+- [x] Likes and comments (MVP)
+- [x] Basic moderation: report post
+- [x] Settings — username change + avatar upload
+- [x] User search — find readers by username/name (`/people`, search on `/feed`)
+
+**Deferred:** Direct messaging (Phase 7+)
 
 **Exit criteria:** Two users can follow each other and see posts in feed.
+
+**API:** `GET`/`POST` `/api/posts`, `GET`/`POST`/`DELETE` `/api/users/[username]/follow`, `GET` `/api/users/[username]/posts`, `GET` `/api/users/search`, `POST` `/api/posts/[id]/like`, `GET`/`POST` `/api/posts/[id]/comments`, `POST` `/api/posts/[id]/report`, `GET` `/api/books/search`
+
+**Verify:** `npm run verify:phase5` or `GET /api/health/phase5`
 
 ---
 
@@ -560,8 +568,9 @@ Track these as you build — resolve before or during the relevant phase.
 |----------|---------|-----------|
 | Public vs invite-only beta? | Open signup vs invite codes | Phase 7 |
 | Who can read any book? | All logged-in users vs must add to shelf first | Phase 3 |
-| Reviews public or friends-only? | Public default like Goodreads | Phase 5 |
-| Rich text in posts? | Plain text vs markdown | Phase 5 |
+| Reviews public or friends-only? | **Private** — shelf reviews not on public profile | Phase 5 ✅ |
+| Rich text in posts? | **Plain text** only | Phase 5 ✅ |
+| Default feed scope? | **Following-only** (+ own posts) | Phase 5 ✅ |
 | ISBN / external book metadata? | Manual only vs Open Library API | Phase 1 |
 | Monetization? | Free, ads, subscription, tips | Post-beta |
 | Offline reading? | Web: unlikely; Mobile: later | Phase 9 |

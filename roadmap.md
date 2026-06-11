@@ -3,7 +3,7 @@
 Actionable next steps by phase. For vision, data model, and stack rationale see [PROJECT.md](./PROJECT.md).
 
 **Last updated:** 2026-06-10  
-**Current position:** Phases 0–4 complete in code. **Next:** Phase 5 (social core).
+**Current position:** Phases 0–5 complete in code. **Next:** Phase 6 (book requests).
 
 ---
 
@@ -16,7 +16,7 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 | 2 | Bookshelf & showcase | ✅ Complete |
 | 3 | Reader & progress | ✅ Complete |
 | 4 | Genres & recommendations | ✅ Complete |
-| 5 | Social core | 🔴 Own profile only |
+| 5 | Social core | ✅ Complete |
 | 6 | Book requests | 🔴 Placeholder page |
 | 7 | Notifications & polish | 🔴 Partial |
 | 8 | Beta & iterate | 🔴 Not started |
@@ -83,6 +83,17 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 - Genre bridge — `Fiction`-only books match fiction subgenre prefs (not cross-subgenre)
 - `npm run verify:phase4`, `npm run test:recommendations`, `GET /api/health/phase4`
 
+### Phase 5 — Social core ✅
+
+- Prisma social models — `Follow`, `Post`, `PostLike`, `Comment`, `PostReport`; migration `20250610170000_social_core`
+- Social lib (`src/lib/social/`) — follow graph, feed, posts, likes, comments, reports, public profiles
+- APIs — follow, posts feed/create, user posts, user search, like, comments, report, book search for tags
+- Feed page (`/feed`) — compose post, post cards, user search, load more
+- People page (`/people`) — find readers by username or name
+- Public profile (`/u/[username]`) — showcase, shelf, follow button, posts
+- Settings — username change + avatar upload
+- `npm run verify:phase5`, `GET /api/health/phase5`
+
 ---
 
 ## Ops & hardening (ongoing)
@@ -96,7 +107,7 @@ Code shipped; production may still need manual steps.
 | `scripts/fix-ascended-admin-upload.sql` | ✅ | Run in Neon if duplicate Ascended rows |
 | `scripts/migrate-ascended-book-id.sql` | ✅ | Run if old `&` book id still in DB |
 | Large PDF workflow (`db:upload-files`) | ✅ documented in README | Use for files > ~4 MB on Vercel |
-| Migrations (progress, showcase, onboarding) | ✅ in repo | `prisma migrate deploy` on Neon |
+| Migrations (progress, showcase, onboarding, social) | ✅ in repo | `prisma migrate deploy` on Neon |
 | Vercel env vars | — | Confirm `DATABASE_URL`, `AUTH_SECRET`, `BLOB_*`, `ADMIN_EMAILS` |
 | PDF access policy | — | Decide: any logged-in user vs shelf-only (today: any logged-in user) |
 
@@ -108,44 +119,36 @@ Shipped — see **Completed work** above. Push notifications for new books defer
 
 ---
 
-## Phase 5 — Social core
+## Phase 5 — Social core ✅
 
 **Goal:** Public profiles, follow graph, and a feed of bookish posts.
 
-### Done
+### Shipped
 
-- Own profile page (`/profile`) — bio, avatar, shelf stats, showcase manager
-- Showcase API (`PUT /api/shelf/showcase`) and shelf ratings/dates
-- Shelf status filters and card actions
+- **Schema** — `Follow`, `Post`, `PostLike`, `Comment`, `PostReport`; migration `20250610170000_social_core`
+- **Lib** — `src/lib/social/` (follow, posts, feed, public profile, map types)
+- **Follow API** — `GET`/`POST`/`DELETE` `/api/users/[username]/follow`
+- **Posts API** — `GET`/`POST` `/api/posts` (following feed + create); `GET` `/api/users/[username]/posts`
+- **Engagement** — `POST` `/api/posts/[id]/like`, `GET`/`POST` `/api/posts/[id]/comments`, `POST` `/api/posts/[id]/report`
+- **Book tag search** — `GET /api/books/search` for compose autocomplete
+- **User search** — `GET /api/users/search`; search bar on `/feed` + `/people` page (username/name, follow inline, link to profile)
+- **Public profile** — `/u/[username]` — showcase, shelf, follower counts, follow button, user posts
+- **Feed page** — `/feed` with compose, post cards, load-more pagination
+- **Settings** — username change + avatar upload (`AvatarSettings`, `PATCH /api/user/settings`)
+- **Profile link** — `/profile` → “Public profile” button to `/u/[username]`
+- **Middleware** — `/u` routes protected (login required)
+- **Verify** — `npm run verify:phase5`, `GET /api/health/phase5`
 
-### Next up
+### Product decisions (locked for v1)
 
-#### Schema & API
-
-- [ ] **Prisma models** — `Follow`, `Post`, `PostLike`, `Comment`
-- [ ] **Indexes** — `followerId`, `followingId`, `post.createdAt`, `post.userId`
-- [ ] **Follow API** — `POST/DELETE /api/users/[username]/follow`; follower/following counts
-- [ ] **Posts API** — `POST /api/posts`, `GET /api/feed`, `GET /api/users/[username]/posts`
-- [ ] **Engagement API** — like/unlike, comment CRUD; cursor pagination
-
-#### UI
-
-- [ ] **Public profile** — `/u/[username]` — showcase, public shelf, follower counts, follow button
-- [ ] **Feed page** — replace placeholder; infinite scroll from followed users
-- [ ] **Compose post** — text + optional book tag (catalog autocomplete)
-- [ ] **Post card** — author, book link, like/comment counts, timestamp
-- [ ] **Settings page** — username, avatar upload (genre prefs done in Phase 4)
-- [ ] **Report post** — `POST /api/posts/[id]/report`; admin flag (minimal v1)
-
-#### Product decisions (resolve before build)
-
-- [ ] Reviews on shelf: public on profile vs private notes only?
-- [ ] Posts: plain text only or markdown with allowlist?
-- [ ] Default feed: following-only vs include trending?
+- Shelf reviews: **private** (not shown on public profile)
+- Posts: **plain text** only
+- Feed: **following-only** (+ own posts)
+- Messaging: **deferred** — direct messages planned for Phase 7+
 
 ### Exit criteria
 
-Two users can follow each other, post about a book, and see each other’s posts in the feed.
+Two users can follow each other, post about a book, and see each other’s posts in the feed. ✅
 
 ---
 
@@ -194,6 +197,13 @@ Request submitted → visible in admin queue → status updated → requester se
 - [ ] **`GET /api/notifications`**, `PATCH` mark read / mark all read
 - [ ] **Notification bell** — header dropdown + unread badge
 - [ ] **Emit on events** — follow, comment, like, book added (genre match), request fulfilled
+
+#### Messaging (post–social core)
+
+- [ ] **Prisma models** — `Conversation`, `Message` (or thread per pair)
+- [ ] **Inbox UI** — `/messages` list + thread view
+- [ ] **`GET`/`POST` `/api/messages`** — send, list threads, mark read
+- [ ] **Start from profile** — “Message” button on `/u/[username]` (mutual follow or open DM policy TBD)
 
 #### Email
 
@@ -288,8 +298,6 @@ Phase 9 (mobile)
 
 | Route | File | Target phase |
 | ----- | ---- | ------------ |
-| `/settings` | `src/app/(app)/settings/page.tsx` | 5 (username/avatar) |
-| `/feed` | `src/app/(app)/feed/page.tsx` | 5 |
 | `/requests` | `src/app/(app)/requests/page.tsx` | 6 |
 
 ---
@@ -301,10 +309,12 @@ Phase 9 (mobile)
 | `npm run verify:phase1` | Catalog + storage + admin |
 | `npm run verify:phase3` | Reader + progress + PDF delivery |
 | `npm run verify:phase4` | Settings + recommendations engine |
+| `npm run verify:phase5` | Social graph + feed + profiles |
 | `npm run test:recommendations` | Unit tests for genre scoring |
 | `GET /api/health/phase1` | Deployed Phase 1 JSON report |
 | `GET /api/health/phase3` | Deployed Phase 3 JSON report |
 | `GET /api/health/phase4` | Deployed Phase 4 JSON report |
+| `GET /api/health/phase5` | Deployed Phase 5 JSON report |
 
 ---
 
@@ -316,3 +326,4 @@ Phase 9 (mobile)
 | 2026-06-10 | Phase 3 marked complete; added Phases 0–3 shipped summary, ops table, verify commands |
 | 2026-06-10 | Phase 4 complete — settings, recommendations engine, Discover page, dashboard widgets |
 | 2026-06-10 | Phase 4 hardening — genre matching fixes, verify:phase4, test:recommendations |
+| 2026-06-10 | Phase 5 complete — social core, settings avatar/username, verify:phase5 |

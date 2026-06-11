@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AvatarSettings } from "@/components/settings/avatar-settings";
 import { GenrePicker } from "@/components/settings/genre-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,10 @@ import { cn } from "@/lib/utils";
 type SettingsUser = {
   firstName: string | null;
   lastName: string | null;
+  name: string | null;
   username: string;
   bio: string | null;
+  avatarUrl: string | null;
   genrePreferences: string[];
   booksPerWeek: number | null;
 };
@@ -34,6 +37,8 @@ export function SettingsForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState("");
   const [genres, setGenres] = useState<string[]>([]);
   const [booksPerWeek, setBooksPerWeek] = useState<ReadingFrequency>(
@@ -55,6 +60,12 @@ export function SettingsForm() {
       setFirstName(loadedFirst);
       setLastName(loadedLast);
       setUsername(data.user.username);
+      setDisplayName(
+        data.user.name?.trim() ||
+          [loadedFirst, loadedLast].filter(Boolean).join(" ").trim() ||
+          data.user.username,
+      );
+      setAvatarUrl(data.user.avatarUrl ?? null);
       setBio(data.user.bio ?? "");
       setGenres(data.user.genrePreferences ?? []);
       setBooksPerWeek(normalizeReadingFrequency(data.user.booksPerWeek));
@@ -92,6 +103,7 @@ export function SettingsForm() {
         body: JSON.stringify({
           firstName: trimmedFirst,
           lastName: trimmedLast,
+          username,
           bio: bio.trim() || null,
           genrePreferences: genres,
           booksPerWeek,
@@ -103,6 +115,7 @@ export function SettingsForm() {
       if (!response.ok) {
         const fieldError =
           data.error?.genrePreferences?.[0] ??
+          data.error?.username?.[0] ??
           data.error?.firstName?.[0] ??
           data.error?.lastName?.[0] ??
           data.error?.bio?.[0];
@@ -127,6 +140,19 @@ export function SettingsForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
+        <div>
+          <h2 className="font-medium">Photo</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Shown on your profile, posts, and comments.
+          </p>
+        </div>
+        <AvatarSettings
+          initialAvatarUrl={avatarUrl}
+          displayName={displayName}
+        />
+      </section>
+
       <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
         <div>
           <h2 className="font-medium">Profile</h2>
@@ -158,9 +184,19 @@ export function SettingsForm() {
 
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
-          <Input id="username" value={`@${username}`} disabled />
+          <Input
+            id="username"
+            value={username}
+            onChange={(event) =>
+              setUsername(
+                event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+              )
+            }
+            maxLength={30}
+            required
+          />
           <p className="text-xs text-muted-foreground">
-            Username changes are coming in a later update.
+            Your public profile lives at /u/{username || "username"}
           </p>
         </div>
 
