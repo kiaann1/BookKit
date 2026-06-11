@@ -153,9 +153,43 @@ export function PostCard({ post: initialPost }: PostCardProps) {
             </span>
           </div>
 
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
-            {post.body}
-          </p>
+          {post.type === "ARTICLE" && post.title ? (
+            <h4 className="mt-3 font-display text-base font-semibold leading-snug">
+              {post.title}
+            </h4>
+          ) : null}
+
+          {post.mediaUrl && post.type === "IMAGE" ? (
+            <div className="relative mt-3 aspect-[4/5] max-h-[28rem] w-full overflow-hidden rounded-2xl bg-muted/30">
+              <Image
+                src={post.mediaUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, 640px"
+                unoptimized
+              />
+            </div>
+          ) : null}
+
+          {post.mediaUrl && post.type === "VIDEO" ? (
+            <video
+              src={post.mediaUrl}
+              controls
+              className="mt-3 max-h-[28rem] w-full rounded-2xl bg-black"
+            />
+          ) : null}
+
+          {post.body ? (
+            <p
+              className={cn(
+                "whitespace-pre-wrap text-sm leading-relaxed",
+                post.type === "ARTICLE" ? "mt-2" : "mt-3",
+              )}
+            >
+              {post.body}
+            </p>
+          ) : null}
 
           {post.book ? (
             <Link

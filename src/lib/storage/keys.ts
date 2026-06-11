@@ -10,6 +10,10 @@ export function bookCoverKey(bookId: string, extension: string) {
   return `books/${bookId}/cover.${extension}`;
 }
 
+export function postMediaKey(postId: string, extension: string) {
+  return `posts/${postId}/media.${extension}`;
+}
+
 export function coverExtensionFromMime(mime: string) {
   switch (mime) {
     case "image/jpeg":

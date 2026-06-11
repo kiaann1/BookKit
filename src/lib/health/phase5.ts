@@ -35,7 +35,7 @@ export async function runPhase5Checks(): Promise<Phase5Report> {
     ),
     feedPage: path.join(root, "src/app/(app)/feed/page.tsx"),
     publicProfilePage: path.join(root, "src/app/(app)/u/[username]/page.tsx"),
-    composePost: path.join(root, "src/components/social/compose-post.tsx"),
+    composePost: path.join(root, "src/components/social/compose-post-sheet.tsx"),
     postCard: path.join(root, "src/components/social/post-card.tsx"),
     avatarSettings: path.join(root, "src/components/settings/avatar-settings.tsx"),
     bookSearchApi: path.join(root, "src/app/api/books/search/route.ts"),

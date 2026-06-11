@@ -1,0 +1,7 @@
+-- CreateEnum
+CREATE TYPE "PostType" AS ENUM ('TEXT', 'IMAGE', 'ARTICLE', 'VIDEO');
+
+-- AlterTable
+ALTER TABLE "Post" ADD COLUMN "type" "PostType" NOT NULL DEFAULT 'TEXT';
+ALTER TABLE "Post" ADD COLUMN "title" TEXT;
+ALTER TABLE "Post" ADD COLUMN "mediaKey" TEXT;

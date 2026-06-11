@@ -218,6 +218,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       {user && (
         <BookDetailMobileCta
           bookId={book.id}
+          initialStatus={shelfEntry?.status ?? null}
           label={
             progress && progress.progressPercent > 0
               ? "Continue reading"

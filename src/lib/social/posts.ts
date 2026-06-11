@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { isFollowing } from "@/lib/social/follow";
 import { mapPostBook, mapSocialAuthor } from "@/lib/social/map";
 import { canViewFullProfile } from "@/lib/social/privacy";
+import type { CreatePostInput } from "@/lib/validations/post";
+import { getPostMediaApiUrl } from "@/lib/storage/post-media";
 import type { CommentItem, FeedPage, PostItem } from "@/lib/social/types";
 
 const authorSelect = {
@@ -19,7 +21,10 @@ const authorSelect = {
 async function mapPosts(
   rows: Array<{
     id: string;
+    type: PostItem["type"];
+    title: string | null;
     body: string;
+    mediaKey: string | null;
     createdAt: Date;
     user: {
       id: string;
@@ -48,7 +53,10 @@ async function mapPosts(
 
     posts.push({
       id: row.id,
+      type: row.type,
+      title: row.title,
       body: row.body,
+      mediaUrl: row.mediaKey ? getPostMediaApiUrl(row.id) : null,
       createdAt: row.createdAt,
       author: mapSocialAuthor(row.user),
       book,
@@ -63,7 +71,7 @@ async function mapPosts(
 
 export async function createPost(
   userId: string,
-  input: { body: string; bookId?: string | null },
+  input: CreatePostInput & { mediaKey?: string | null },
 ) {
   if (!(await isDatabaseAvailable())) {
     return { error: "Database unavailable" as const };
@@ -79,7 +87,10 @@ export async function createPost(
   const post = await prisma.post.create({
     data: {
       userId,
+      type: input.type,
+      title: input.type === "ARTICLE" ? input.title : null,
       body: input.body,
+      mediaKey: input.mediaKey ?? null,
       bookId: input.bookId ?? null,
     },
     select: { id: true },

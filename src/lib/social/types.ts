@@ -12,9 +12,14 @@ export type PostBookTag = {
   coverUrl: string | null;
 };
 
+export type PostType = "TEXT" | "IMAGE" | "ARTICLE" | "VIDEO";
+
 export type PostItem = {
   id: string;
+  type: PostType;
+  title: string | null;
   body: string;
+  mediaUrl: string | null;
   createdAt: Date;
   author: SocialAuthor;
   book: PostBookTag | null;

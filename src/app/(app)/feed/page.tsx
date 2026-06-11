@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ComposePost } from "@/components/social/compose-post";
 import { FeedView } from "@/components/social/feed-view";
 import { UserSearch } from "@/components/social/user-search";
 import { PageHeader } from "@/components/layout/page-header";
@@ -42,7 +41,6 @@ export default async function FeedPage() {
         <UserSearch variant="compact" />
       </section>
 
-      <ComposePost />
       <FeedView initialPosts={feed.posts} initialCursor={feed.nextCursor} />
     </FadeIn>
   );

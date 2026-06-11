@@ -1,18 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import { BookmarkCheck } from "lucide-react";
 import { StarRating } from "@/components/shelf/star-rating";
+import { ShelfStatusPicker } from "@/components/shelf/shelf-status-picker";
 import { Button } from "@/components/ui/button";
 import { readBookPath } from "@/lib/books/paths";
 import {
   SHELF_STATUS_LABELS,
-  SHELF_STATUS_OPTIONS,
   type ShelfStatus,
 } from "@/lib/constants/shelf-status";
-import { cn } from "@/lib/utils";
+import { useShelfBook } from "@/hooks/use-shelf-book";
 
 type ShelfActionsProps = {
   bookId: string;
@@ -27,142 +25,30 @@ export function ShelfActions({
   initialStatus,
   initialRating = null,
 }: ShelfActionsProps) {
-  const router = useRouter();
-  const [status, setStatus] = useState<ShelfStatus | null>(initialStatus);
-  const [rating, setRating] = useState<number | null>(initialRating);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function addToShelf(nextStatus: ShelfStatus) {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/shelf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookId, status: nextStatus }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error ?? "Could not add to shelf");
-        return;
-      }
-
-      setStatus(data.entry.status);
-      router.refresh();
-    } catch {
-      setError("Something went wrong");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function patchShelf(body: Record<string, unknown>) {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(`/api/shelf/${encodeURIComponent(bookId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(
-          typeof data.error === "string"
-            ? data.error
-            : "Could not update shelf entry",
-        );
-        return false;
-      }
-
-      if (data.entry?.status) {
-        setStatus(data.entry.status);
-      }
-      if (data.entry?.rating !== undefined) {
-        setRating(data.entry.rating);
-      }
-      router.refresh();
-      return true;
-    } catch {
-      setError("Something went wrong");
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function updateStatus(nextStatus: ShelfStatus) {
-    await patchShelf({ status: nextStatus });
-  }
-
-  async function updateRating(nextRating: number | null) {
-    const previous = rating;
-    setRating(nextRating);
-    const ok = await patchShelf({ rating: nextRating });
-    if (!ok) {
-      setRating(previous);
-    }
-  }
-
-  async function removeFromShelf() {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch(`/api/shelf/${encodeURIComponent(bookId)}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.error ?? "Could not remove from shelf");
-        return;
-      }
-
-      setStatus(null);
-      router.refresh();
-    } catch {
-      setError("Something went wrong");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const {
+    status,
+    rating,
+    isLoading,
+    error,
+    updateStatus,
+    updateRating,
+    removeFromShelf,
+  } = useShelfBook({ bookId, initialStatus, initialRating });
 
   if (!status) {
     return (
-      <div className="rounded-2xl border border-border/80 bg-card p-5 card-glow">
+      <div className="hidden rounded-2xl border border-border/80 bg-card p-5 card-glow md:block">
         <p className="font-medium">Add to your shelf</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Save {bookTitle} to track reading progress and status.
         </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button
-            className="h-11 w-full touch-manipulation sm:h-10 sm:w-auto"
-            onClick={() => addToShelf("WANT_TO_READ")}
+        <div className="mt-4">
+          <ShelfStatusPicker
+            value={null}
+            onSelect={(nextStatus) => void updateStatus(nextStatus)}
             disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Bookmark className="h-4 w-4" />
-            )}
-            Want to Read
-          </Button>
-          <Button
-            variant="outline"
-            className="h-11 w-full touch-manipulation sm:h-10 sm:w-auto"
-            onClick={() => addToShelf("CURRENTLY_READING")}
-            disabled={isLoading}
-          >
-            Currently Reading
-          </Button>
+            loading={isLoading}
+          />
         </div>
         {error && (
           <p className="mt-3 text-sm text-destructive" role="alert">
@@ -192,11 +78,11 @@ export function ShelfActions({
         </Link>
       </div>
 
-      <Link href={readBookPath(bookId)} className="mt-4 inline-block">
-        <Button size="sm">
-          <Bookmark className="h-4 w-4" />
-          Read book
-        </Button>
+      <Link
+        href={readBookPath(bookId)}
+        className="mt-4 hidden md:inline-block"
+      >
+        <Button size="sm">Read book</Button>
       </Link>
 
       <div className="mt-4">
@@ -208,30 +94,22 @@ export function ShelfActions({
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {SHELF_STATUS_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            disabled={isLoading}
-            onClick={() => updateStatus(option.value)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
-              status === option.value
-                ? "bg-brand-gradient text-white"
-                : "bg-background text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="mt-4 hidden md:block">
+        <ShelfStatusPicker
+          value={status}
+          onSelect={(nextStatus) => void updateStatus(nextStatus)}
+          disabled={isLoading}
+          loading={isLoading}
+          layout="row"
+          size="sm"
+        />
       </div>
 
       <Button
         variant="ghost"
         size="sm"
-        className="mt-4 text-muted-foreground hover:text-destructive"
-        onClick={removeFromShelf}
+        className="mt-4 hidden text-muted-foreground hover:text-destructive md:inline-flex"
+        onClick={() => void removeFromShelf()}
         disabled={isLoading}
       >
         Remove from shelf
