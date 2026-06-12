@@ -3,7 +3,8 @@ import path from "path";
 import { BookStatus } from "@/lib/constants/book-status";
 import { getPublishedBookPdfKey } from "@/lib/books/pdf";
 import { prisma } from "@/lib/db";
-import { fileExists, getStorageDriver } from "@/lib/storage";
+import { getStorageDriver } from "@/lib/storage";
+import { fileExistsInAnyBackend } from "@/lib/storage/resolve";
 
 export type Phase3Check = {
   id: string;
@@ -82,7 +83,9 @@ export async function runPhase3Checks(): Promise<Phase3Report> {
 
       if (book) {
         const resolvedKey = await getPublishedBookPdfKey(book.id);
-        const pdfReady = resolvedKey ? await fileExists(resolvedKey) : false;
+        const pdfReady = resolvedKey
+          ? await fileExistsInAnyBackend(resolvedKey)
+          : false;
 
         pushCheck(checks, {
           id: "sample_pdf",

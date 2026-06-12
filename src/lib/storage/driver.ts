@@ -1,4 +1,5 @@
 import { isBlobConfigured } from "@/lib/storage/blob";
+import { hasLocalBookPdfs } from "@/lib/storage/resolve";
 import { isS3Configured } from "@/lib/storage/s3";
 
 export type StorageDriver = "blob" | "s3" | "local";
@@ -15,6 +16,11 @@ export function getStorageDriver(): StorageDriver {
   }
 
   if (preferred === "local") {
+    return "local";
+  }
+
+  // After `vercel env pull`, Blob tokens are present locally but PDFs often live on disk.
+  if (process.env.VERCEL !== "1" && hasLocalBookPdfs()) {
     return "local";
   }
 

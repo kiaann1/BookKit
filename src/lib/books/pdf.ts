@@ -2,10 +2,9 @@ import {
   getBookIdLookupCandidates,
   THE_ASCENDED_BOOK_ID,
 } from "@/lib/books/paths";
-import { hasStoragePdf } from "@/lib/books/storage-books";
 import { BookStatus } from "@/lib/constants/book-status";
 import { prisma } from "@/lib/db";
-import { fileExists } from "@/lib/storage";
+import { fileExistsInAnyBackend } from "@/lib/storage/resolve";
 import { bookPdfKey } from "@/lib/storage/keys";
 
 /** Blob path from before the canonical Ascended id (still used in seed rows). */
@@ -25,7 +24,7 @@ function isUsablePdfKey(pdfKey: string | null | undefined) {
 
 async function firstExistingPdfKey(keys: string[]) {
   for (const key of keys) {
-    if (await fileExists(key)) {
+    if (await fileExistsInAnyBackend(key)) {
       return key;
     }
   }
@@ -42,10 +41,6 @@ export async function getPublishedBookPdfKey(bookId: string) {
 
     if (candidate === THE_ASCENDED_BOOK_ID) {
       fallbackKeys.push(THE_ASCENDED_LEGACY_PDF_KEY);
-    }
-
-    if (hasStoragePdf(candidate)) {
-      return conventionalKey;
     }
 
     if (canQueryDatabase()) {
@@ -76,7 +71,7 @@ export async function getPublishedBookPdfKey(bookId: string) {
         continue;
       }
       triedKeys.add(key);
-      if (await fileExists(key)) {
+      if (await fileExistsInAnyBackend(key)) {
         return key;
       }
     }

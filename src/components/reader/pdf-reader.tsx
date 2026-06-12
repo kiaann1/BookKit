@@ -41,6 +41,15 @@ function clampZoom(value: number) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
 }
 
+function isValidPdfHeader(bytes: Uint8Array) {
+  if (bytes.byteLength < 5) {
+    return bytes.byteLength === 1 && bytes[0] === 0x25;
+  }
+
+  const header = new TextDecoder().decode(bytes.subarray(0, 5));
+  return header === "%PDF-";
+}
+
 function getTouchDistance(touches: TouchList | React.TouchList) {
   if (touches.length < 2) {
     return 0;
@@ -328,7 +337,7 @@ export function PdfReader({
 
         const probe = await fetch(pdfUrl, {
           credentials: "include",
-          headers: { Range: "bytes=0-0" },
+          headers: { Range: "bytes=0-4" },
         });
         if (!probe.ok) {
           if (probe.status === 401) {
@@ -349,42 +358,63 @@ export function PdfReader({
           throw new Error(`PDF fetch failed (${probe.status})`);
         }
 
-        let doc: import("pdfjs-dist").PDFDocumentProxy;
+        const probeBytes = new Uint8Array(await probe.arrayBuffer());
+        if (
+          probeBytes.byteLength > 0 &&
+          !isValidPdfHeader(probeBytes)
+        ) {
+          throw new Error("storage");
+        }
+
         const pdfOptions = {
           ...getPdfJsDocumentOptions(pdfjs.version),
           disableRange: true,
           disableStream: true,
         };
 
+        const response = await fetch(pdfUrl, { credentials: "include" });
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("unauthorized");
+          }
+          if (response.status === 404) {
+            let detail = "missing";
+            try {
+              const body = (await response.json()) as { error?: string };
+              if (body.error === "pdf_not_in_storage") {
+                detail = "storage";
+              }
+            } catch {
+              // Empty or non-JSON 404 body.
+            }
+            throw new Error(detail);
+          }
+          throw new Error(`PDF fetch failed (${response.status})`);
+        }
+
+        const data = await response.arrayBuffer();
+        if (data.byteLength < 5) {
+          throw new Error("storage");
+        }
+        if (!isValidPdfHeader(new Uint8Array(data, 0, 5))) {
+          throw new Error("storage");
+        }
+
+        let doc: import("pdfjs-dist").PDFDocumentProxy;
         try {
           doc = await pdfjs.getDocument({
-            url: pdfUrl,
-            withCredentials: true,
+            data,
             ...pdfOptions,
           }).promise;
-        } catch (rangeError) {
-          const response = await fetch(pdfUrl, { credentials: "include" });
-          if (!response.ok) {
-            throw new Error(`PDF fetch failed (${response.status})`);
-          }
-          const data = await response.arrayBuffer();
-          if (data.byteLength < 5) {
-            throw new Error("storage");
-          }
-          try {
-            doc = await pdfjs.getDocument({
-              data,
-              ...pdfOptions,
-            }).promise;
-          } catch {
-            const hint =
-              rangeError instanceof Error ? rangeError.message : "Invalid PDF";
-            throw new Error(
-              hint.toLowerCase().includes("invalid")
-                ? "storage"
-                : `PDF open failed: ${hint}`,
-            );
-          }
+        } catch (parseError) {
+          const hint =
+            parseError instanceof Error ? parseError.message : "Invalid PDF";
+          const invalidPdf =
+            hint.toLowerCase().includes("invalid pdf") ||
+            hint.toLowerCase().includes("corrupted");
+          throw new Error(
+            invalidPdf ? "storage" : `PDF open failed: ${hint}`,
+          );
         }
 
         if (cancelled) {

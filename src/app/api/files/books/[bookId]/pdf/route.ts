@@ -5,9 +5,10 @@ import { getPublishedBookPdfKey } from "@/lib/books/pdf";
 import { pdfRangeFromLocalKey } from "@/lib/files/pdf-range-local";
 import { pdfRangeResponse } from "@/lib/files/pdf-response";
 import { isValidPdfBuffer } from "@/lib/files/pdf-validation";
-import { getStorageDriver, readFile } from "@/lib/storage";
-import { isBlobConfigured, streamBlobForRequest } from "@/lib/storage/blob";
-import { getS3SignedUrl } from "@/lib/storage/s3";
+import { getStorageDriver } from "@/lib/storage";
+import type { StorageDriver } from "@/lib/storage/driver";
+import { isBlobConfigured, readBlob, streamBlobForRequest } from "@/lib/storage/blob";
+import { getS3Object, isS3Configured } from "@/lib/storage/s3";
 
 export const runtime = "nodejs";
 
@@ -19,47 +20,81 @@ function pdfNotFound(body: Record<string, unknown>) {
   return NextResponse.json(body, { status: 404 });
 }
 
-async function servePdf(pdfKey: string, request: Request) {
-  const driver = getStorageDriver();
-
-  if (driver === "s3") {
-    const url = await getS3SignedUrl(pdfKey, 3600);
-    return NextResponse.redirect(url);
+async function serveFromBlob(pdfKey: string, request: Request) {
+  if (!isBlobConfigured()) {
+    return null;
   }
 
-  if (driver === "blob") {
-    if (request.headers.get("range")) {
-      const streamed = await streamBlobForRequest(pdfKey, request);
-      if (streamed) {
-        return streamed;
-      }
-    }
-
-    const blobFile = await readFile(pdfKey);
-    if (blobFile) {
-      if (!isValidPdfBuffer(blobFile)) {
-        return null;
-      }
-      return pdfRangeResponse(blobFile, request);
-    }
-
+  if (request.headers.get("range")) {
     const streamed = await streamBlobForRequest(pdfKey, request);
     if (streamed) {
       return streamed;
     }
   }
 
+  const blobFile = await readBlob(pdfKey);
+  if (!blobFile || !isValidPdfBuffer(blobFile)) {
+    return null;
+  }
+
+  return pdfRangeResponse(blobFile, request);
+}
+
+async function serveFromS3(pdfKey: string, request: Request) {
+  if (!isS3Configured()) {
+    return null;
+  }
+
+  const file = await getS3Object(pdfKey);
+  if (!file || !isValidPdfBuffer(file)) {
+    return null;
+  }
+
+  return pdfRangeResponse(file, request);
+}
+
+async function serveFromDriver(
+  driver: StorageDriver,
+  pdfKey: string,
+  request: Request,
+) {
+  if (driver === "local") {
+    return pdfRangeFromLocalKey(pdfKey, request);
+  }
+
+  if (driver === "blob") {
+    return serveFromBlob(pdfKey, request);
+  }
+
+  if (driver === "s3") {
+    return serveFromS3(pdfKey, request);
+  }
+
+  return null;
+}
+
+async function servePdf(pdfKey: string, request: Request) {
   const local = await pdfRangeFromLocalKey(pdfKey, request);
   if (local) {
     return local;
   }
 
-  const file = await readFile(pdfKey);
-  if (file) {
-    if (!isValidPdfBuffer(file)) {
-      return null;
+  const primary = getStorageDriver();
+  const drivers: StorageDriver[] = [primary];
+  for (const driver of ["local", "blob", "s3"] as const) {
+    if (!drivers.includes(driver)) {
+      drivers.push(driver);
     }
-    return pdfRangeResponse(file, request);
+  }
+
+  for (const driver of drivers) {
+    if (driver === "local") {
+      continue;
+    }
+    const response = await serveFromDriver(driver, pdfKey, request);
+    if (response) {
+      return response;
+    }
   }
 
   return null;
