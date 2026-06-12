@@ -16,7 +16,7 @@ export function ConversationList({
       <div className="rounded-2xl border border-dashed border-border/80 px-5 py-12 text-center">
         <p className="font-medium">No conversations yet</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Message readers you follow who follow you back from their profile.
+          Start a conversation from someone&apos;s profile with the Message button.
         </p>
       </div>
     );

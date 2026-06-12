@@ -22,8 +22,7 @@ export default async function PeoplePage() {
       <UserSearch variant="full" />
 
       <p className="text-sm text-muted-foreground">
-        When you and another reader follow each other, you can message them from
-        their profile or your{" "}
+        Visit a profile and tap Message, or open your{" "}
         <Link href="/messages" className="text-primary underline-offset-4 hover:underline">
           inbox
         </Link>

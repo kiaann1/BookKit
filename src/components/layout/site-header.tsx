@@ -2,28 +2,22 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { DevAuthBanner } from "@/components/layout/dev-auth-banner";
 import { MainNav } from "@/components/layout/main-nav";
+import { MessagesNavLink } from "@/components/layout/messages-nav-link";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { MoreNav } from "@/components/layout/more-nav";
+import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { SignOutButton } from "@/components/layout/sign-out-button";
 import { isAdmin } from "@/lib/auth/admin";
 import { isAuthDisabled } from "@/lib/dev-auth";
+import { navItemsForUser } from "@/lib/layout/nav-items";
 import { getSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-
-const navItems = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/catalog", label: "Catalog" },
-  { href: "/shelf", label: "Shelf" },
-  { href: "/feed", label: "Feed" },
-  { href: "/people", label: "People" },
-  { href: "/recommendations", label: "Discover" },
-  { href: "/requests", label: "Requests" },
-];
 
 export async function SiteHeader() {
   const session = await getSession();
   const authDisabled = isAuthDisabled();
   const admin = await isAdmin();
+  const nav = navItemsForUser({ isAdmin: admin });
 
   return (
     <header
@@ -31,57 +25,30 @@ export async function SiteHeader() {
       className="safe-top sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl"
     >
       <DevAuthBanner />
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:gap-6 sm:px-6">
-        <div className="flex items-center gap-8">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:gap-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-4 lg:gap-6">
           <Logo href={session ? "/dashboard" : "/"} />
 
-            {session && (
-              <MainNav
-                items={
-                  admin
-                    ? [...navItems, { href: "/admin/books", label: "Admin" }]
-                    : navItems
-                }
-              />
-            )}
+          {session ? (
+            <div className="flex min-w-0 items-center">
+              <MainNav items={nav.primary} />
+              <MoreNav items={nav.more} />
+            </div>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           {session ? (
             <>
-              {admin && (
-                <Link href="/admin/books" className="hidden sm:inline">
-                  <Button variant="outline" size="sm">
-                    Admin
-                  </Button>
-                </Link>
-              )}
               <NotificationBell />
-              <Link href="/messages" className="hidden sm:inline">
-                <Button variant="ghost" size="sm">
-                  Messages
-                </Button>
-              </Link>
-              <Link
-                href={`/u/${session.user.username}`}
-                className="hidden rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/8 hover:text-foreground sm:inline"
-              >
-                @{session.user.username}
-              </Link>
-              <Link href="/settings" className="hidden sm:inline">
-                <Button variant="ghost" size="sm">
-                  Settings
-                </Button>
-              </Link>
-              {!authDisabled && (
-                <SignOutButton className="hidden sm:inline-flex" />
-              )}
+              <MessagesNavLink />
+              <UserMenu
+                username={session.user.username}
+                authDisabled={authDisabled}
+                isAdmin={admin}
+              />
               <MobileNav
-                items={
-                  admin
-                    ? [...navItems, { href: "/admin/books", label: "Admin" }]
-                    : navItems
-                }
+                items={nav.mobile}
                 username={session.user.username}
                 authDisabled={authDisabled}
               />

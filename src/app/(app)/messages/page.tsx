@@ -19,7 +19,7 @@ export default async function MessagesPage() {
     <FadeIn className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Messages"
-        description="Private conversations with readers who follow you back."
+        description="Private conversations with other readers."
       />
 
       <ConversationList conversations={conversations} />

@@ -1,7 +1,7 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import { sanitizePlainText } from "@/lib/security/sanitize";
-import { isFollowing } from "@/lib/social/follow";
+import { getBlockStatus } from "@/lib/social/block";
 
 export type ConversationListItem = {
   id: string;
@@ -53,12 +53,8 @@ export async function canMessageUser(viewerId: string, targetUserId: string) {
     return false;
   }
 
-  const [viewerFollows, targetFollows] = await Promise.all([
-    isFollowing(viewerId, targetUserId),
-    isFollowing(targetUserId, viewerId),
-  ]);
-
-  return viewerFollows && targetFollows;
+  const blockStatus = await getBlockStatus(viewerId, targetUserId);
+  return !blockStatus.isBlockedByViewer && !blockStatus.hasBlockedViewer;
 }
 
 export async function getOrCreateConversation(
@@ -296,9 +292,7 @@ export async function sendMessage(
 
     const allowed = await canMessageUser(senderId, recipient.id);
     if (!allowed) {
-      return {
-        error: "You can only message users who follow you back" as const,
-      };
+      return { error: "You cannot message this user" as const };
     }
 
     const conversation = await getOrCreateConversation(senderId, recipient.id);
