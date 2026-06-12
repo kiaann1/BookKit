@@ -78,6 +78,22 @@ export async function getOrCreateConversation(
   });
 }
 
+export async function getUnreadMessageCount(userId: string) {
+  if (!(await isDatabaseAvailable())) {
+    return 0;
+  }
+
+  return prisma.message.count({
+    where: {
+      readAt: null,
+      senderId: { not: userId },
+      conversation: {
+        OR: [{ participantLowId: userId }, { participantHighId: userId }],
+      },
+    },
+  });
+}
+
 export async function listConversations(userId: string) {
   if (!(await isDatabaseAvailable())) {
     return [];
