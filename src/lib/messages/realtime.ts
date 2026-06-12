@@ -2,6 +2,10 @@ import { prisma } from "@/lib/db";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import type { MessageItem } from "@/lib/messages";
 import { getConversationForUser } from "@/lib/messages/index";
+import {
+  clearTypingFields,
+  isTypingSupported,
+} from "@/lib/messages/typing-support";
 
 export const TYPING_TTL_MS = 5_000;
 
@@ -70,8 +74,8 @@ export async function setConversationTyping(
   conversationId: string,
   userId: string,
 ) {
-  if (!(await isDatabaseAvailable())) {
-    return { error: "Database unavailable" as const };
+  if (!(await isDatabaseAvailable()) || !(await isTypingSupported())) {
+    return { ok: true as const };
   }
 
   const conversation = await getConversationForUser(conversationId, userId);
@@ -79,13 +83,17 @@ export async function setConversationTyping(
     return { error: "Conversation not found" as const };
   }
 
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: {
-      typingUserId: userId,
-      typingExpiresAt: new Date(Date.now() + TYPING_TTL_MS),
-    },
-  });
+  try {
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        typingUserId: userId,
+        typingExpiresAt: new Date(Date.now() + TYPING_TTL_MS),
+      },
+    });
+  } catch {
+    return { ok: true as const };
+  }
 
   return { ok: true as const };
 }
@@ -94,26 +102,24 @@ export async function clearConversationTyping(
   conversationId: string,
   userId: string,
 ) {
-  if (!(await isDatabaseAvailable())) {
+  if (!(await isDatabaseAvailable()) || !(await isTypingSupported())) {
     return { ok: true as const };
   }
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    select: { typingUserId: true },
-  });
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { typingUserId: true },
+    });
 
-  if (!conversation || conversation.typingUserId !== userId) {
-    return { ok: true as const };
+    if (!conversation || conversation.typingUserId !== userId) {
+      return { ok: true as const };
+    }
+
+    await clearTypingFields(conversationId);
+  } catch {
+    // Typing is optional — never block messaging.
   }
-
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: {
-      typingUserId: null,
-      typingExpiresAt: null,
-    },
-  });
 
   return { ok: true as const };
 }
@@ -122,7 +128,7 @@ export async function getOtherUserTyping(
   conversationId: string,
   userId: string,
 ) {
-  if (!(await isDatabaseAvailable())) {
+  if (!(await isDatabaseAvailable()) || !(await isTypingSupported())) {
     return false;
   }
 
@@ -131,21 +137,25 @@ export async function getOtherUserTyping(
     return false;
   }
 
-  const row = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    select: {
-      typingUserId: true,
-      typingExpiresAt: true,
-    },
-  });
+  try {
+    const row = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: {
+        typingUserId: true,
+        typingExpiresAt: true,
+      },
+    });
 
-  if (!row?.typingUserId || row.typingUserId === userId) {
+    if (!row?.typingUserId || row.typingUserId === userId) {
+      return false;
+    }
+
+    if (!row.typingExpiresAt || row.typingExpiresAt.getTime() <= Date.now()) {
+      return false;
+    }
+
+    return true;
+  } catch {
     return false;
   }
-
-  if (!row.typingExpiresAt || row.typingExpiresAt.getTime() <= Date.now()) {
-    return false;
-  }
-
-  return true;
 }

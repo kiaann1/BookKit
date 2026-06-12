@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MessageThread } from "@/components/messages/message-thread";
 import { MessagesShell } from "@/components/messages/messages-shell";
-import { FadeIn } from "@/components/motion/fade-in";
 import {
   getConversationForUser,
   getMessages,
@@ -52,7 +51,7 @@ export default async function MessageThreadPage({
   }
 
   return (
-    <FadeIn>
+    <div className="page-enter flex min-h-0 flex-1 flex-col">
       <MessagesShell conversations={conversations} activeConversationId={id}>
         <MessageThread
           conversationId={id}
@@ -67,6 +66,6 @@ export default async function MessageThreadPage({
           initialMessages={messages}
         />
       </MessagesShell>
-    </FadeIn>
+    </div>
   );
 }

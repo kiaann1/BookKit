@@ -1,5 +1,6 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { clearTypingFields } from "@/lib/messages/typing-support";
 import { sanitizePlainText } from "@/lib/security/sanitize";
 import { getBlockStatus } from "@/lib/social/block";
 import { resolveAvatarUrl } from "@/lib/storage/avatar";
@@ -342,10 +343,10 @@ export async function sendMessage(
     where: { id: conversationId },
     data: {
       lastMessageAt: message.createdAt,
-      typingUserId: null,
-      typingExpiresAt: null,
     },
   });
+
+  await clearTypingFields(conversationId);
 
   return {
     messageId: message.id,

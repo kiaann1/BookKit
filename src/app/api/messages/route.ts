@@ -46,7 +46,12 @@ export async function POST(request: Request) {
 
   const result = await sendMessage(auth.userId, parsed.data);
   if ("error" in result) {
-    const status = result.error === "User not found" ? 404 : 400;
+    const status =
+      result.error === "User not found"
+        ? 404
+        : result.error === "Database unavailable"
+          ? 503
+          : 400;
     return NextResponse.json({ error: result.error }, { status });
   }
 

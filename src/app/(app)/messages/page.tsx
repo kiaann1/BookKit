@@ -15,7 +15,7 @@ export default async function MessagesPage() {
   const conversations = auth ? await listConversations(auth.userId) : [];
 
   return (
-    <div className="page-enter">
+    <div className="page-enter flex min-h-0 flex-1 flex-col">
       <MessagesShell conversations={conversations}>
         <ChatEmptyState />
       </MessagesShell>

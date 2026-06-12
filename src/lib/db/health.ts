@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 
-const CHECK_TTL_MS = 30_000;
+const SUCCESS_CACHE_MS = 30_000;
+const FAILURE_CACHE_MS = 5_000;
 const CHECK_TIMEOUT_MS = 5_000;
 
 let cached: { ok: boolean; checkedAt: number } | null = null;
@@ -19,8 +20,11 @@ export async function isDatabaseAvailable(): Promise<boolean> {
   }
 
   const now = Date.now();
-  if (cached && now - cached.checkedAt < CHECK_TTL_MS) {
-    return cached.ok;
+  if (cached) {
+    const ttl = cached.ok ? SUCCESS_CACHE_MS : FAILURE_CACHE_MS;
+    if (now - cached.checkedAt < ttl) {
+      return cached.ok;
+    }
   }
 
   try {

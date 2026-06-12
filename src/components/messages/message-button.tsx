@@ -32,7 +32,9 @@ export function MessageButton({ username }: MessageButtonProps) {
       if (!response.ok) {
         setError(
           typeof data.error === "string"
-            ? data.error
+            ? data.error === "Database unavailable"
+              ? "Messaging is temporarily unavailable. Try again in a moment."
+              : data.error
             : "Could not start a conversation",
         );
         return;
