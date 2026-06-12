@@ -28,7 +28,7 @@ export function ShelfFilters({
   ];
 
   return (
-    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-thin-x sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
       {items.map((item) => {
         const href = item.value ? `/shelf?status=${item.value}` : "/shelf";
         const isActive = currentStatus === item.value;

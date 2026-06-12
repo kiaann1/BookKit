@@ -18,6 +18,7 @@ const rightTabs = [
 
 const hiddenPrefixes = [
   "/read",
+  "/messages",
   "/login",
   "/register",
   "/forgot-password",
@@ -52,7 +53,7 @@ function NavTab({
       )}
     >
       {isActive && (
-        <span className="absolute inset-x-1 top-1 h-8 rounded-lg bg-primary/10" />
+        <span className="absolute inset-1 rounded-lg bg-primary/10" />
       )}
       <Icon
         className={cn("relative h-5 w-5", isActive && "text-primary")}

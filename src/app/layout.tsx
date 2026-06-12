@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import { CookieNotice } from "@/components/layout/cookie-notice";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ComposePostSheet } from "@/components/social/compose-post-sheet";
@@ -55,6 +56,7 @@ export default async function RootLayout({
         <AuthSessionProvider>
           <ComposeProvider>
             <div className="mesh-background flex min-h-dvh flex-col">
+              <NavigationProgress />
               <SiteHeader />
               <main className="main-with-mobile-nav flex-1">{children}</main>
               {session ? (

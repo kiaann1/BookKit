@@ -2,6 +2,7 @@ import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
 import { sanitizePlainText } from "@/lib/security/sanitize";
 import { getBlockStatus } from "@/lib/social/block";
+import { resolveAvatarUrl } from "@/lib/storage/avatar";
 
 export type ConversationListItem = {
   id: string;
@@ -145,7 +146,7 @@ export async function listConversations(userId: string) {
         id: otherUser.id,
         username: otherUser.username,
         displayName: displayName(otherUser),
-        avatarUrl: otherUser.avatarUrl,
+        avatarUrl: resolveAvatarUrl(otherUser.id, otherUser.avatarUrl),
       },
       lastMessage: last
         ? {
@@ -218,7 +219,7 @@ export async function getConversationForUser(
       id: otherUser.id,
       username: otherUser.username,
       displayName: displayName(otherUser),
-      avatarUrl: otherUser.avatarUrl,
+      avatarUrl: resolveAvatarUrl(otherUser.id, otherUser.avatarUrl),
     },
   };
 }

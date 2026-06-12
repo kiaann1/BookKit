@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { ConversationList } from "@/components/messages/conversation-list";
-import { PageHeader } from "@/components/layout/page-header";
+import { ChatEmptyState } from "@/components/messages/chat-empty-state";
+import { MessagesShell } from "@/components/messages/messages-shell";
 import { FadeIn } from "@/components/motion/fade-in";
 import { listConversations } from "@/lib/messages";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
@@ -16,13 +16,10 @@ export default async function MessagesPage() {
   const conversations = auth ? await listConversations(auth.userId) : [];
 
   return (
-    <FadeIn className="mx-auto max-w-2xl space-y-6">
-      <PageHeader
-        title="Messages"
-        description="Private conversations with other readers."
-      />
-
-      <ConversationList conversations={conversations} />
+    <FadeIn>
+      <MessagesShell conversations={conversations}>
+        <ChatEmptyState />
+      </MessagesShell>
     </FadeIn>
   );
 }

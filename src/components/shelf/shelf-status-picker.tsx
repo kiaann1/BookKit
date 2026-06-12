@@ -29,7 +29,7 @@ export function ShelfStatusPicker({
       className={cn(
         layout === "grid"
           ? "grid grid-cols-2 gap-2"
-          : "flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin-x",
+          : "flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide",
       )}
     >
       {SHELF_STATUS_OPTIONS.map((option) => {

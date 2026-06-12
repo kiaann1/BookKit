@@ -139,6 +139,16 @@ body {
   scrollbar-width: thin;
 }
 
+.scrollbar-hide {
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 ::selection {
   background: oklch(0.52 0.19 295 / 0.2);
 }

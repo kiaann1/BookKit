@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MessageThread } from "@/components/messages/message-thread";
-import { PageHeader } from "@/components/layout/page-header";
+import { MessagesShell } from "@/components/messages/messages-shell";
 import { FadeIn } from "@/components/motion/fade-in";
 import {
   getConversationForUser,
   getMessages,
+  listConversations,
 } from "@/lib/messages";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
@@ -41,9 +41,10 @@ export default async function MessageThreadPage({
   }
 
   const { id } = await params;
-  const [conversation, messages] = await Promise.all([
+  const [conversation, messages, conversations] = await Promise.all([
     getConversationForUser(id, auth.userId),
     getMessages(id, auth.userId),
+    listConversations(auth.userId),
   ]);
 
   if (!conversation || messages === null) {
@@ -51,19 +52,20 @@ export default async function MessageThreadPage({
   }
 
   return (
-    <FadeIn className="mx-auto max-w-2xl space-y-6">
-      <PageHeader
-        title={conversation.otherUser.displayName}
-        description={`@${conversation.otherUser.username}`}
-      />
-
-      <p className="text-sm text-muted-foreground">
-        <Link href="/messages" className="text-primary underline-offset-4 hover:underline">
-          Back to inbox
-        </Link>
-      </p>
-
-      <MessageThread conversationId={id} initialMessages={messages} />
+    <FadeIn>
+      <MessagesShell conversations={conversations} activeConversationId={id}>
+        <MessageThread
+          conversationId={id}
+          otherUser={{
+            displayName:
+              conversation.otherUser.displayName ??
+              conversation.otherUser.username,
+            username: conversation.otherUser.username,
+            avatarUrl: conversation.otherUser.avatarUrl,
+          }}
+          initialMessages={messages}
+        />
+      </MessagesShell>
     </FadeIn>
   );
 }
