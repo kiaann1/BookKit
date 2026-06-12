@@ -11,6 +11,8 @@ import { isBlobConfigured, readBlob, streamBlobForRequest } from "@/lib/storage/
 import { getS3Object, isS3Configured } from "@/lib/storage/s3";
 
 export const runtime = "nodejs";
+/** Large PDFs need time to stream from Blob on Vercel. */
+export const maxDuration = 60;
 
 type RouteContext = {
   params: Promise<{ bookId: string }>;
@@ -25,11 +27,9 @@ async function serveFromBlob(pdfKey: string, request: Request) {
     return null;
   }
 
-  if (request.headers.get("range")) {
-    const streamed = await streamBlobForRequest(pdfKey, request);
-    if (streamed) {
-      return streamed;
-    }
+  const streamed = await streamBlobForRequest(pdfKey, request);
+  if (streamed) {
+    return streamed;
   }
 
   const blobFile = await readBlob(pdfKey);

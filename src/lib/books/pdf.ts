@@ -43,6 +43,16 @@ export async function getPublishedBookPdfKey(bookId: string) {
       fallbackKeys.push(THE_ASCENDED_LEGACY_PDF_KEY);
     }
 
+    for (const key of fallbackKeys) {
+      if (triedKeys.has(key)) {
+        continue;
+      }
+      triedKeys.add(key);
+      if (await fileExistsInAnyBackend(key)) {
+        return key;
+      }
+    }
+
     if (canQueryDatabase()) {
       try {
         const book = await prisma.book.findFirst({
@@ -63,16 +73,6 @@ export async function getPublishedBookPdfKey(bookId: string) {
           candidate,
           error,
         );
-      }
-    }
-
-    for (const key of fallbackKeys) {
-      if (triedKeys.has(key)) {
-        continue;
-      }
-      triedKeys.add(key);
-      if (await fileExistsInAnyBackend(key)) {
-        return key;
       }
     }
   }

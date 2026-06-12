@@ -1,6 +1,8 @@
+import { createReadStream } from "fs";
 import { open } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
+import { Readable } from "stream";
 
 function pdfResponseHeaders(fileSize: number, extra?: Record<string, string>) {
   return {
@@ -53,15 +55,18 @@ export async function pdfRangeFromLocalKey(key: string, request: Request) {
       }
     }
 
-    const buffer = Buffer.alloc(fileSize);
-    await handle.read(buffer, 0, fileSize, 0);
+    await handle.close();
+    handle = null;
 
-    return new NextResponse(new Uint8Array(buffer), {
+    const stream = createReadStream(filePath);
+    return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
       headers: pdfResponseHeaders(fileSize, {
         "Content-Length": String(fileSize),
       }),
     });
   } finally {
-    await handle.close();
+    if (handle) {
+      await handle.close();
+    }
   }
 }
