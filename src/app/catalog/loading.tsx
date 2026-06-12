@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CatalogLoading() {
   return (
-    <div className="page-stack mx-auto flex max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-10">
+    <div className="page-stack mx-auto flex max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-8">
       <PageHeader
         title="Catalog"
         description="Browse every book in the library — search and filter by genre."

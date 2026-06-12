@@ -29,7 +29,7 @@ export function FadeIn({
       className={cn(className)}
       initial={fadeUp.initial}
       animate={fadeUp.animate}
-      transition={{ duration: 0.5, ease, delay }}
+      transition={{ duration: 0.22, ease, delay }}
     >
       {children}
     </Component>

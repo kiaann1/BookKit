@@ -1,8 +1,11 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useCompose } from "@/components/social/compose-context";
 import { cn } from "@/lib/utils";
+
+const HIDDEN_PREFIXES = ["/read"];
 
 type ComposeFabProps = {
   className?: string;
@@ -10,7 +13,12 @@ type ComposeFabProps = {
 };
 
 export function ComposeFab({ className, variant = "floating" }: ComposeFabProps) {
+  const pathname = usePathname();
   const { openCompose } = useCompose();
+
+  if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
 
   return (
     <button

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ChatEmptyState } from "@/components/messages/chat-empty-state";
 import { MessagesShell } from "@/components/messages/messages-shell";
-import { FadeIn } from "@/components/motion/fade-in";
 import { listConversations } from "@/lib/messages";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
@@ -16,10 +15,10 @@ export default async function MessagesPage() {
   const conversations = auth ? await listConversations(auth.userId) : [];
 
   return (
-    <FadeIn>
+    <div className="page-enter">
       <MessagesShell conversations={conversations}>
         <ChatEmptyState />
       </MessagesShell>
-    </FadeIn>
+    </div>
   );
 }

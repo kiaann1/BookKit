@@ -38,7 +38,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const { q, genre } = await searchParams;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-10">
+    <div className="page-enter mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
       <div className="page-stack flex flex-col">
         <PageHeader
           title="Catalog"

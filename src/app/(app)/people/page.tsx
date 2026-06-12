@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { FadeIn } from "@/components/motion/fade-in";
+import { PageShell } from "@/components/layout/page-shell";
 import { UserSearch } from "@/components/social/user-search";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 
@@ -13,10 +13,10 @@ export default async function PeoplePage() {
   await requireCompletedOnboarding();
 
   return (
-    <FadeIn className="mx-auto max-w-2xl space-y-6">
+    <PageShell width="medium">
       <PageHeader
         title="Find readers"
-        description="Search by username or name, visit profiles, and follow people whose taste you trust."
+        description="Search by username or name and follow people whose taste you trust."
       />
 
       <UserSearch variant="full" />
@@ -28,6 +28,6 @@ export default async function PeoplePage() {
         </Link>
         .
       </p>
-    </FadeIn>
+    </PageShell>
   );
 }

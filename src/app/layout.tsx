@@ -5,7 +5,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { ComposePostSheet } from "@/components/social/compose-post-sheet";
+import { ComposePostSheetLoader } from "@/components/social/compose-post-sheet-loader";
 import { ComposeProvider } from "@/components/social/compose-context";
 import { ComposeFab } from "@/components/social/compose-fab";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
@@ -64,7 +64,7 @@ export default async function RootLayout({
                 <>
                   <MobileBottomNav />
                   <ComposeFab className="hidden md:flex" variant="floating" />
-                  <ComposePostSheet />
+                  <ComposePostSheetLoader />
                 </>
               ) : null}
               <SiteFooter />

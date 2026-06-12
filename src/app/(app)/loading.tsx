@@ -1,5 +1,5 @@
-import { PageLoader } from "@/components/motion/page-loader";
+import { AppPageSkeleton } from "@/components/layout/app-page-skeletons";
 
 export default function AppLoading() {
-  return <PageLoader />;
+  return <AppPageSkeleton />;
 }

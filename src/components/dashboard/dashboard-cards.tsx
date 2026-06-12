@@ -1,10 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { Compass, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 
 const cards = [
   {
@@ -26,40 +22,32 @@ const cards = [
 ];
 
 export function DashboardCards() {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <motion.div
-      className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-      variants={prefersReducedMotion ? undefined : staggerContainer}
-      initial="initial"
-      animate="animate"
-    >
+    <div className="grid gap-4 sm:grid-cols-2">
       {cards.map((card) => (
-        <motion.div
+        <div
           key={card.title}
-          variants={staggerItem}
-          className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card p-6 card-glow transition-transform duration-300 hover:-translate-y-1"
+          className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-5 transition hover:border-primary/20"
         >
           <div
-            className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accent} opacity-60`}
+            className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${card.accent} opacity-50`}
           />
           <div className="relative">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient shadow-md shadow-primary/20">
-              <card.icon className="h-5 w-5 text-white" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-brand-gradient shadow-sm shadow-primary/20">
+              <card.icon className="h-4 w-4 text-white" />
             </div>
             <h2 className="font-medium">{card.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {card.description}
             </p>
-            <Link href={card.href} className="mt-4 inline-block">
+            <Link href={card.href} className="mt-3 inline-block">
               <Button variant="outline" size="sm">
                 {card.cta}
               </Button>
             </Link>
           </div>
-        </motion.div>
+        </div>
       ))}
-    </motion.div>
+    </div>
   );
 }
