@@ -5,27 +5,44 @@ import {
   getMessages,
   markConversationRead,
 } from "@/lib/messages";
+import {
+  getMessagesAfter,
+  getOtherUserTyping,
+} from "@/lib/messages/realtime";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const auth = await getAuthenticatedUser();
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await context.params;
+  const after = new URL(request.url).searchParams.get("after");
+  const incremental = Boolean(after);
 
-  const [conversation, messages] = await Promise.all([
-    getConversationForUser(id, auth.userId),
-    getMessages(id, auth.userId),
+  const [conversation, messages, typingActive] = await Promise.all([
+    incremental ? Promise.resolve(null) : getConversationForUser(id, auth.userId),
+    incremental
+      ? getMessagesAfter(id, auth.userId, after!)
+      : getMessages(id, auth.userId),
+    getOtherUserTyping(id, auth.userId),
   ]);
 
-  if (!conversation || messages === null) {
+  if (messages === null) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ conversation, messages });
+  if (!incremental && !conversation) {
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ...(conversation ? { conversation } : {}),
+    messages,
+    typing: { active: typingActive },
+  });
 }
 
 export async function PATCH(_request: Request, context: RouteContext) {

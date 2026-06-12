@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { assertAdminApi } from "@/lib/auth/admin-api";
 import {
+  deleteBookRequestByAdmin,
   getBookRequestForAdmin,
   updateBookRequestAdmin,
 } from "@/lib/book-requests";
@@ -56,6 +57,28 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   revalidatePath("/admin/requests");
   revalidatePath("/requests");
+  revalidatePath("/admin/books");
 
   return NextResponse.json(result);
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const auth = await assertAdminApi();
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { id } = await context.params;
+  const result = await deleteBookRequestByAdmin(id);
+
+  if ("error" in result) {
+    const status = result.error === "Request not found" ? 404 : 503;
+    return NextResponse.json({ error: result.error }, { status });
+  }
+
+  revalidatePath("/admin/requests");
+  revalidatePath("/requests");
+  revalidatePath("/admin/books");
+
+  return NextResponse.json({ ok: true });
 }

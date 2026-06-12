@@ -15,7 +15,7 @@ export function ChatHeader({
   avatarUrl,
 }: ChatHeaderProps) {
   return (
-    <header className="flex items-center gap-3 border-b border-border/60 bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
+    <header className="safe-top flex shrink-0 items-center gap-3 border-b border-border/60 bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
       <Link href="/messages" className="md:hidden">
         <Button type="button" variant="ghost" size="icon" aria-label="Back to inbox">
           <ArrowLeft className="h-4 w-4" />

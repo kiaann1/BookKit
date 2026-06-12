@@ -1,20 +1,24 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatAvatar } from "@/components/messages/chat-avatar";
 import { ChatComposer } from "@/components/messages/chat-composer";
 import { ChatHeader } from "@/components/messages/chat-header";
+import { TypingIndicator } from "@/components/messages/typing-indicator";
 import type { MessageItem } from "@/lib/messages";
 import {
   dayKey,
   formatDayDivider,
   formatMessageTime,
 } from "@/lib/messages/format";
+import { useConversationSync } from "@/hooks/use-conversation-sync";
+import { useMobileChatViewport } from "@/hooks/use-mobile-chat-viewport";
+import { useTypingPresence } from "@/hooks/use-typing-presence";
 import { cn } from "@/lib/utils";
 
 type MessageThreadProps = {
   conversationId: string;
+  currentUserId: string;
   otherUser: {
     displayName: string;
     username: string;
@@ -25,29 +29,65 @@ type MessageThreadProps = {
 
 export function MessageThread({
   conversationId,
+  currentUserId,
   otherUser,
   initialMessages,
 }: MessageThreadProps) {
-  const router = useRouter();
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState(initialMessages);
+  const viewportHeight = useMobileChatViewport();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
+  const { messages, setMessages, otherUserTyping } = useConversationSync({
+    conversationId,
+    initialMessages,
+  });
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useTypingPresence(conversationId, body, sending);
 
   useEffect(() => {
     void fetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
       method: "PATCH",
     });
   }, [conversationId]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    function handleScroll() {
+      if (!container) {
+        return;
+      }
+
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      shouldStickToBottomRef.current = distanceFromBottom < 96;
+    }
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!shouldStickToBottomRef.current) {
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "auto",
+    });
+  }, [messages, otherUserTyping]);
 
   const groupedMessages = useMemo(() => {
     const groups: { day: string; label: string; items: MessageItem[] }[] = [];
@@ -78,6 +118,7 @@ export function MessageThread({
 
     setError(null);
     setSending(true);
+    shouldStickToBottomRef.current = true;
 
     try {
       const response = await fetch("/api/messages", {
@@ -98,18 +139,17 @@ export function MessageThread({
       }
 
       setBody("");
-      setMessages((current) => [
-        ...current,
+      setMessages([
+        ...messages,
         {
           id: data.messageId,
-          senderId: "self",
+          senderId: currentUserId,
           body: text,
           readAt: null,
           createdAt: data.createdAt,
           isOwn: true,
         },
       ]);
-      router.refresh();
     } catch {
       setError("Could not send message");
     } finally {
@@ -118,14 +158,28 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
+    <div
+      className="flex h-full min-h-0 flex-1 flex-col"
+      style={
+        viewportHeight
+          ? { height: viewportHeight, maxHeight: viewportHeight }
+          : undefined
+      }
+    >
       <ChatHeader
         displayName={otherUser.displayName}
         username={otherUser.username}
         avatarUrl={otherUser.avatarUrl}
       />
 
-      <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/[0.04] via-background to-background px-3 py-4 sm:px-4">
+      {otherUserTyping ? (
+        <TypingIndicator displayName={otherUser.displayName} />
+      ) : null}
+
+      <div
+        ref={scrollContainerRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none] bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/[0.04] via-background to-background px-3 py-4 sm:px-4"
+      >
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <p className="text-sm font-medium">Start the conversation</p>
@@ -147,7 +201,9 @@ export function MessageThread({
                   const previous = group.items[index - 1];
                   const showAvatar =
                     !message.isOwn &&
-                    (!previous || previous.isOwn || previous.senderId !== message.senderId);
+                    (!previous ||
+                      previous.isOwn ||
+                      previous.senderId !== message.senderId);
 
                   return (
                     <div
@@ -198,7 +254,6 @@ export function MessageThread({
             ))}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       <ChatComposer

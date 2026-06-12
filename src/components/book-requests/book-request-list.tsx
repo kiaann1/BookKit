@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BookRequestStatusBadge } from "@/components/book-requests/book-request-status-badge";
+import { DeleteBookRequestButton } from "@/components/book-requests/delete-book-request-button";
 import { Button } from "@/components/ui/button";
 import {
   BOOK_REQUEST_STATUS_DESCRIPTIONS,
@@ -20,6 +21,7 @@ type BookRequestListProps = {
   requests: BookRequestListItem[];
   showRequester?: boolean;
   showVoteButton?: boolean;
+  deleteMode?: "owner" | "admin";
   emptyMessage: string;
 };
 
@@ -27,10 +29,12 @@ function RequestRow({
   request,
   showRequester,
   showVoteButton,
+  deleteMode,
 }: {
   request: BookRequestListItem;
   showRequester?: boolean;
   showVoteButton?: boolean;
+  deleteMode?: "owner" | "admin";
 }) {
   const router = useRouter();
   const [voteCount, setVoteCount] = useState(request.voteCount);
@@ -119,29 +123,39 @@ function RequestRow({
           ) : null}
         </div>
 
-        {canVote ? (
-          <div className="flex shrink-0 flex-col items-center gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={hasVoted ? "default" : "outline"}
-              disabled={voting}
-              onClick={() => void toggleVote()}
-              className={cn("min-w-16", hasVoted && "shadow-sm")}
-            >
-              <ChevronUp className="h-4 w-4" />
-              {voteCount}
-            </Button>
-            <span className="text-xs text-muted-foreground">upvotes</span>
-            {voteError ? (
-              <p className="max-w-24 text-center text-xs text-destructive">
-                {voteError}
-              </p>
-            ) : null}
-          </div>
-        ) : voteCount > 0 ? (
-          <div className="text-sm text-muted-foreground">{voteCount} upvotes</div>
-        ) : null}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {canVote ? (
+            <div className="flex flex-col items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={hasVoted ? "default" : "outline"}
+                disabled={voting}
+                onClick={() => void toggleVote()}
+                className={cn("min-w-16", hasVoted && "shadow-sm")}
+              >
+                <ChevronUp className="h-4 w-4" />
+                {voteCount}
+              </Button>
+              <span className="text-xs text-muted-foreground">upvotes</span>
+              {voteError ? (
+                <p className="max-w-24 text-center text-xs text-destructive">
+                  {voteError}
+                </p>
+              ) : null}
+            </div>
+          ) : voteCount > 0 ? (
+            <div className="text-sm text-muted-foreground">{voteCount} upvotes</div>
+          ) : null}
+
+          {deleteMode ? (
+            <DeleteBookRequestButton
+              requestId={request.id}
+              title={request.title}
+              variant={deleteMode === "owner" ? "user" : "admin"}
+            />
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -153,6 +167,7 @@ export function BookRequestList({
   requests,
   showRequester = false,
   showVoteButton = false,
+  deleteMode,
   emptyMessage,
 }: BookRequestListProps) {
   return (
@@ -176,6 +191,7 @@ export function BookRequestList({
               request={request}
               showRequester={showRequester}
               showVoteButton={showVoteButton}
+              deleteMode={deleteMode}
             />
           ))}
         </div>

@@ -2,23 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Home, Library, Plus, User } from "lucide-react";
-import { useCompose } from "@/components/social/compose-context";
+import { useSession } from "next-auth/react";
+import { BookOpen, Home, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const leftTabs = [
+const tabs = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/catalog", label: "Catalog", icon: BookOpen },
-];
-
-const rightTabs = [
-  { href: "/shelf", label: "Shelf", icon: Library },
-  { href: "/profile", label: "Profile", icon: User },
-];
+  { href: "/messages", label: "Messages", icon: MessageCircle },
+] as const;
 
 const hiddenPrefixes = [
   "/read",
-  "/messages",
   "/login",
   "/register",
   "/forgot-password",
@@ -26,47 +21,59 @@ const hiddenPrefixes = [
 ];
 
 function shouldHideNav(pathname: string) {
-  return hiddenPrefixes.some((prefix) => pathname.startsWith(prefix));
+  if (pathname === "/messages") {
+    return false;
+  }
+
+  if (hiddenPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    return true;
+  }
+
+  return pathname.startsWith("/messages/");
 }
 
 function NavTab({
   href,
   label,
   icon: Icon,
-  pathname,
+  isActive,
 }: {
   href: string;
   label: string;
   icon: typeof Home;
-  pathname: string;
+  isActive: boolean;
 }) {
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
-
   return (
     <Link
       href={href}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-medium transition-colors touch-manipulation",
-        isActive
-          ? "text-primary"
-          : "text-muted-foreground active:text-foreground",
+        "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors touch-manipulation",
+        isActive ? "text-primary" : "text-muted-foreground active:text-foreground",
       )}
     >
-      {isActive && (
-        <span className="absolute inset-1 rounded-lg bg-primary/10" />
-      )}
+      {isActive ? (
+        <>
+          <span className="absolute inset-x-2 top-0 h-0.5 rounded-full bg-brand-gradient" />
+          <span className="absolute inset-1 rounded-xl bg-primary/10" />
+        </>
+      ) : null}
       <Icon
-        className={cn("relative h-5 w-5", isActive && "text-primary")}
-        strokeWidth={isActive ? 2.25 : 2}
+        className={cn("relative h-[1.35rem] w-[1.35rem]", isActive && "text-primary")}
+        strokeWidth={isActive ? 2.35 : 2}
       />
-      <span className="relative truncate">{label}</span>
+      <span className={cn("relative max-w-full truncate", isActive && "font-semibold")}>
+        {label}
+      </span>
     </Link>
   );
 }
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const { openCompose } = useCompose();
+  const { data: session } = useSession();
+  const username = session?.user?.username;
+  const profileHref = username ? `/u/${username}` : "/profile";
 
   if (shouldHideNav(pathname)) {
     return null;
@@ -74,33 +81,32 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 shadow-[0_-8px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl md:hidden dark:shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Main navigation"
     >
-      <div className="mx-auto flex h-[3.75rem] max-w-6xl items-stretch px-1">
-        <div className="flex min-w-0 flex-1 items-stretch">
-          {leftTabs.map((tab) => (
-            <NavTab key={tab.href} {...tab} pathname={pathname} />
-          ))}
-        </div>
-
-        <div className="flex w-[4.5rem] shrink-0 items-center justify-center">
-          <button
-            type="button"
-            onClick={() => openCompose()}
-            aria-label="Create post"
-            className="flex h-14 w-14 -translate-y-4 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition active:scale-95 touch-manipulation"
-          >
-            <Plus className="h-7 w-7" strokeWidth={2.5} />
-          </button>
-        </div>
-
-        <div className="flex min-w-0 flex-1 items-stretch">
-          {rightTabs.map((tab) => (
-            <NavTab key={tab.href} {...tab} pathname={pathname} />
-          ))}
-        </div>
+      <div className="mx-auto flex h-[3.85rem] max-w-6xl items-stretch px-2">
+        {tabs.map((tab) => (
+          <NavTab
+            key={tab.href}
+            {...tab}
+            isActive={
+              tab.href === "/messages"
+                ? pathname === "/messages"
+                : pathname === tab.href || pathname.startsWith(`${tab.href}/`)
+            }
+          />
+        ))}
+        <NavTab
+          href={profileHref}
+          label="Profile"
+          icon={User}
+          isActive={
+            username
+              ? pathname === profileHref || pathname.startsWith(`${profileHref}/`)
+              : pathname === "/profile" || pathname.startsWith("/profile/")
+          }
+        />
       </div>
     </nav>
   );

@@ -37,7 +37,7 @@ export function ConversationList({
             <Link
               href={`/messages/${conversation.id}`}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 transition hover:bg-muted/40",
+                "flex items-center gap-3 px-4 py-3.5 transition active:bg-muted/50 hover:bg-muted/40",
                 isActive && "bg-primary/8",
               )}
             >

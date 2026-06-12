@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BookStatus } from "@/lib/constants/book-status";
+import { AdminBookRequestsLink } from "@/components/admin/admin-book-requests-link";
 import { DeleteBookButton } from "@/components/admin/delete-book-button";
 import { Phase1Status } from "@/components/admin/phase1-status";
 import { SeedCatalogButton } from "@/components/admin/seed-catalog-button";
@@ -41,9 +42,7 @@ export default async function AdminBooksPage() {
           description="Upload PDFs, edit metadata, and control what's in the catalog."
         />
         <div className="flex flex-wrap gap-2">
-          <Link href="/admin/requests">
-            <Button variant="outline">Book requests</Button>
-          </Link>
+          <AdminBookRequestsLink />
           <Link href="/admin/books/new">
             <Button>
               <Plus className="h-4 w-4" />

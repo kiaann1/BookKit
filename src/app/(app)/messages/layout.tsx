@@ -4,10 +4,8 @@ export default function MessagesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="-mx-4 -my-5 sm:-mx-6 sm:-my-10">
-      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
-        {children}
-      </div>
+    <div className="min-h-[calc(100dvh-3.5rem-var(--mobile-nav-height)-env(safe-area-inset-bottom,0px))] md:mx-auto md:min-h-0 md:max-w-5xl md:py-8">
+      {children}
     </div>
   );
 }

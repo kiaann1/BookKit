@@ -48,7 +48,7 @@ export async function SiteHeader() {
                 isAdmin={admin}
               />
               <MobileNav
-                items={nav.mobile}
+                sections={nav.mobileDrawer}
                 username={session.user.username}
                 authDisabled={authDisabled}
               />

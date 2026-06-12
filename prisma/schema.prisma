@@ -346,12 +346,14 @@ model Notification {
 }
 
 model Conversation {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   participantLowId  String
   participantHighId String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  lastMessageAt     DateTime @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastMessageAt     DateTime  @default(now())
+  typingUserId      String?
+  typingExpiresAt   DateTime?
 
   participantLow  User      @relation("ConversationsLow", fields: [participantLowId], references: [id], onDelete: Cascade)
   participantHigh User      @relation("ConversationsHigh", fields: [participantHighId], references: [id], onDelete: Cascade)

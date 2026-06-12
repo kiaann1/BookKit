@@ -324,7 +324,11 @@ export async function sendMessage(
 
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { lastMessageAt: message.createdAt },
+    data: {
+      lastMessageAt: message.createdAt,
+      typingUserId: null,
+      typingExpiresAt: null,
+    },
   });
 
   return {

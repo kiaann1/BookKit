@@ -7,6 +7,7 @@ import {
   getPopularBookRequests,
   getUserBookRequests,
 } from "@/lib/book-requests";
+import { isAdmin } from "@/lib/auth/admin";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
 import { getAuthenticatedUser } from "@/lib/auth/session-user";
 
@@ -18,12 +19,13 @@ export default async function RequestsPage() {
   await requireCompletedOnboarding();
   const auth = await getAuthenticatedUser();
 
-  const [mine, popular] = auth
+  const [mine, popular, admin] = auth
     ? await Promise.all([
         getUserBookRequests(auth.userId),
         getPopularBookRequests(auth.userId),
+        isAdmin(),
       ])
-    : [[], []];
+    : [[], [], false];
 
   return (
     <FadeIn className="mx-auto max-w-2xl space-y-10">
@@ -38,6 +40,7 @@ export default async function RequestsPage() {
         title="Your requests"
         description="Track status updates here when admins review your submissions."
         requests={mine}
+        deleteMode="owner"
         emptyMessage="You haven't requested any books yet."
       />
 
@@ -47,6 +50,7 @@ export default async function RequestsPage() {
         requests={popular}
         showRequester
         showVoteButton
+        deleteMode={admin ? "admin" : undefined}
         emptyMessage="No open requests right now. Be the first to ask for a title."
       />
     </FadeIn>

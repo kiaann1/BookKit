@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BookRequestStatusBadge } from "@/components/book-requests/book-request-status-badge";
+import { DeleteBookRequestButton } from "@/components/book-requests/delete-book-request-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,6 +202,11 @@ export function AdminRequestQueue({ initialRequests }: AdminRequestQueueProps) {
                         </Button>
                       </Link>
                     ) : null}
+                    <DeleteBookRequestButton
+                      requestId={request.id}
+                      title={request.title}
+                      variant="admin"
+                    />
                   </div>
                 </div>
 

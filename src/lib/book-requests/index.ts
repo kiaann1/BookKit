@@ -166,6 +166,16 @@ export async function getPopularBookRequests(
   return rows.map((row) => mapRequest(row, viewerId));
 }
 
+export async function countPendingBookRequests() {
+  if (!(await isDatabaseAvailable())) {
+    return 0;
+  }
+
+  return prisma.bookRequest.count({
+    where: { status: BookRequestStatus.PENDING },
+  });
+}
+
 export async function getAdminBookRequests(options: {
   status?: BookRequestStatusValue;
   limit?: number;
@@ -307,6 +317,51 @@ export async function updateBookRequestAdmin(
   }
 
   return { request: mapRequest(updated, "") };
+}
+
+export async function deleteBookRequestByUser(
+  requestId: string,
+  userId: string,
+) {
+  if (!(await isDatabaseAvailable())) {
+    return { error: "Database unavailable" as const };
+  }
+
+  const existing = await prisma.bookRequest.findUnique({
+    where: { id: requestId },
+    select: { userId: true },
+  });
+
+  if (!existing) {
+    return { error: "Request not found" as const };
+  }
+
+  if (existing.userId !== userId) {
+    return { error: "You can only delete your own requests" as const };
+  }
+
+  await prisma.bookRequest.delete({ where: { id: requestId } });
+
+  return { ok: true as const };
+}
+
+export async function deleteBookRequestByAdmin(requestId: string) {
+  if (!(await isDatabaseAvailable())) {
+    return { error: "Database unavailable" as const };
+  }
+
+  const existing = await prisma.bookRequest.findUnique({
+    where: { id: requestId },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return { error: "Request not found" as const };
+  }
+
+  await prisma.bookRequest.delete({ where: { id: requestId } });
+
+  return { ok: true as const };
 }
 
 export async function toggleBookRequestVote(requestId: string, userId: string) {

@@ -34,7 +34,7 @@ export function ChatComposer({
   }
 
   return (
-    <div className="border-t border-border/60 bg-card/95 p-3 backdrop-blur sm:p-4">
+    <div className="shrink-0 border-t border-border/60 bg-card/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] backdrop-blur sm:p-4 sm:pb-4">
       {error ? (
         <p className="mb-2 text-xs text-destructive" role="alert">
           {error}
@@ -50,9 +50,11 @@ export function ChatComposer({
           maxLength={2000}
           placeholder="Message…"
           disabled={disabled || sending}
+          enterKeyHint="send"
+          autoComplete="off"
           className={cn(
-            "max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-2xl border border-border/80 bg-background px-4 py-2.5 text-sm",
-            "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30",
+            "max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-full border border-border/80 bg-muted/40 px-4 py-2.5 text-base leading-normal md:text-sm",
+            "placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20",
           )}
         />
         <Button

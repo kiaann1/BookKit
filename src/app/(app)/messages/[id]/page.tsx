@@ -56,6 +56,7 @@ export default async function MessageThreadPage({
       <MessagesShell conversations={conversations} activeConversationId={id}>
         <MessageThread
           conversationId={id}
+          currentUserId={auth.userId}
           otherUser={{
             displayName:
               conversation.otherUser.displayName ??

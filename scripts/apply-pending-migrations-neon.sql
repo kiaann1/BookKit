@@ -196,6 +196,12 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ---------------------------------------------------------------------------
+-- 8. Conversation typing indicators (20250610240000_conversation_typing)
+-- ---------------------------------------------------------------------------
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "typingUserId" TEXT;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "typingExpiresAt" TIMESTAMP(3);
+
+-- ---------------------------------------------------------------------------
 -- Optional: mark migrations applied (so future `prisma migrate deploy` skips them)
 -- Only run if these rows are not already in "_prisma_migrations".
 -- ---------------------------------------------------------------------------

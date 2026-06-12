@@ -111,7 +111,21 @@ export function NotificationBell() {
       </Button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg">
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/25 sm:hidden"
+            aria-label="Close notifications"
+            onClick={() => setOpen(false)}
+          />
+
+          <div
+            className={cn(
+              "z-50 flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg",
+              "fixed inset-x-4 top-[calc(3.5rem+env(safe-area-inset-top,0px)+0.5rem)] max-h-[calc(100dvh-5rem-var(--mobile-nav-height)-env(safe-area-inset-bottom,0px))]",
+              "sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none",
+            )}
+          >
           <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
             <p className="text-sm font-medium">Notifications</p>
             {unreadCount > 0 ? (
@@ -125,7 +139,7 @@ export function NotificationBell() {
             ) : null}
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto sm:max-h-80">
             {loading && notifications.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                 Loading…
@@ -162,7 +176,7 @@ export function NotificationBell() {
             )}
           </div>
 
-          <div className="border-t border-border/60 px-4 py-2">
+          <div className="shrink-0 border-t border-border/60 px-4 py-2">
             <Link
               href="/notifications"
               className="text-xs text-primary hover:underline"
@@ -172,6 +186,7 @@ export function NotificationBell() {
             </Link>
           </div>
         </div>
+        </>
       ) : null}
     </div>
   );
