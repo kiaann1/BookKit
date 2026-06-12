@@ -202,6 +202,11 @@ ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "typingUserId" TEXT;
 ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "typingExpiresAt" TIMESTAMP(3);
 
 -- ---------------------------------------------------------------------------
+-- 9. DM notifications (20250611000000_new_message_notification)
+-- ---------------------------------------------------------------------------
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'NEW_MESSAGE';
+
+-- ---------------------------------------------------------------------------
 -- Optional: mark migrations applied (so future `prisma migrate deploy` skips them)
 -- Only run if these rows are not already in "_prisma_migrations".
 -- ---------------------------------------------------------------------------

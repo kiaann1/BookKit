@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { AvatarSettings } from "@/components/settings/avatar-settings";
 import { GenrePicker } from "@/components/settings/genre-picker";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,28 +140,21 @@ export function SettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Photo</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Shown on your profile, posts, and comments.
-          </p>
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <SettingsSection
+        title="Profile photo"
+        description="Shown on your profile, posts, and comments."
+      >
         <AvatarSettings
           initialAvatarUrl={avatarUrl}
           displayName={displayName}
         />
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Profile</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your display name and public bio.
-          </p>
-        </div>
-
+      <SettingsSection
+        title="Public profile"
+        description="How other readers see you on BookKit."
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="firstName">First name</Label>
@@ -197,7 +190,7 @@ export function SettingsForm() {
             required
           />
           <p className="text-xs text-muted-foreground">
-            Your public profile lives at /u/{username || "username"}
+            Your profile: bookkit.app/u/{username || "username"}
           </p>
         </div>
 
@@ -212,25 +205,22 @@ export function SettingsForm() {
             placeholder="A line or two about what you like to read."
           />
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Genre preferences</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Used for recommendations on your dashboard and Discover page.
-          </p>
+      <SettingsSection
+        title="Reading tastes"
+        description="Powers recommendations on your dashboard and Discover."
+      >
+        <div className="space-y-2">
+          <Label>Genres you enjoy</Label>
+          <GenrePicker value={genres} onChange={setGenres} disabled={saving} />
         </div>
-        <GenrePicker value={genres} onChange={setGenres} disabled={saving} />
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Reading pace</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Helps calibrate goals and future recommendations.
-          </p>
-        </div>
+      <SettingsSection
+        title="Reading pace"
+        description="Helps calibrate goals and future recommendations."
+      >
         <div className="space-y-2">
           {READING_FREQUENCY_OPTIONS.map((option) => (
             <button
@@ -252,7 +242,7 @@ export function SettingsForm() {
             </button>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">
@@ -260,20 +250,12 @@ export function SettingsForm() {
         </p>
       ) : null}
       {success ? (
-        <p className="text-sm text-primary">Settings saved.</p>
+        <p className="text-sm text-primary">Profile settings saved.</p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-4">
-        <Button type="submit" disabled={saving || genres.length === 0}>
-          {saving ? "Saving…" : "Save settings"}
-        </Button>
-        <Link
-          href="/settings/privacy"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          Privacy settings
-        </Link>
-      </div>
+      <Button type="submit" disabled={saving || genres.length === 0}>
+        {saving ? "Saving…" : "Save changes"}
+      </Button>
     </form>
   );
 }

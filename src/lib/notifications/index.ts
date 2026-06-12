@@ -159,6 +159,23 @@ export async function notifyPostComment(
   });
 }
 
+export async function notifyNewMessage(
+  recipientId: string,
+  senderId: string,
+  senderUsername: string,
+  conversationId: string,
+) {
+  if (recipientId === senderId) {
+    return;
+  }
+
+  await emitNotification(recipientId, NotificationType.NEW_MESSAGE, {
+    actorId: senderId,
+    actorUsername: senderUsername,
+    conversationId,
+  });
+}
+
 export async function notifyBookRequestUpdated(
   userId: string,
   input: NotificationPayloadMap["BOOK_REQUEST_UPDATED"],

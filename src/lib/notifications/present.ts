@@ -59,6 +59,16 @@ export function presentNotification(
             : "/requests",
       };
     }
+    case NotificationType.NEW_MESSAGE: {
+      const payload = notification.payload as NotificationItem["payload"] & {
+        actorUsername: string;
+        conversationId: string;
+      };
+      return {
+        title: `New message from @${payload.actorUsername}`,
+        href: `/messages/${payload.conversationId}`,
+      };
+    }
     case NotificationType.NEW_BOOK_IN_GENRE: {
       const payload = notification.payload as NotificationItem["payload"] & {
         bookId: string;

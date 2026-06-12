@@ -8,9 +8,10 @@ import { getAuthenticatedUser } from "@/lib/auth/session-user";
 type FollowListProps = {
   users: FollowListEntry[];
   emptyMessage: string;
+  viewerId: string;
 };
 
-export function FollowList({ users, emptyMessage }: FollowListProps) {
+export function FollowList({ users, emptyMessage, viewerId }: FollowListProps) {
   if (users.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
@@ -54,7 +55,7 @@ export function FollowList({ users, emptyMessage }: FollowListProps) {
           <FollowButton
             username={user.username}
             initialFollowing={user.isFollowing}
-            isSelf={false}
+            isSelf={user.id === viewerId}
           />
         </div>
       ))}
@@ -102,6 +103,7 @@ export async function FollowListForProfile({
   return (
     <FollowList
       users={result.users}
+      viewerId={viewer.userId}
       emptyMessage={
         type === "followers"
           ? "No followers yet."

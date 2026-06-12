@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BookOpen, Home, MessageCircle, User } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, User } from "lucide-react";
 import { ComposeFab } from "@/components/social/compose-fab";
 import { useUnreadMessageCount } from "@/hooks/use-unread-message-count";
 import { cn } from "@/lib/utils";
 
 const leftTabs = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/catalog", label: "Catalog", icon: BookOpen },
+  { href: "/feed", label: "Feed", icon: LayoutGrid },
 ] as const;
 
 const rightTabs = [

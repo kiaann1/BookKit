@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Flag, Heart, MessageCircle } from "lucide-react";
+import { Flag, Heart, MessageCircle, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { PostBody } from "@/components/social/post-body";
+import { PostLikesList } from "@/components/social/post-likes-list";
 import { ReportPostDialog } from "@/components/social/report-post-dialog";
 import { catalogBookPath } from "@/lib/books/paths";
 import type { PostReportReason } from "@/lib/constants/report-reasons";
@@ -39,10 +43,14 @@ export function PostCard({
   variant = "card",
   mode = "feed",
 }: PostCardProps) {
+  const router = useRouter();
+  const { data: session } = useSession();
   const isDetail = mode === "detail";
   const reduceMotion = useReducedMotion();
+  const isOwnPost = session?.user?.id === initialPost.author.id;
 
   const [post, setPost] = useState(initialPost);
+  const [deleting, setDeleting] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(isDetail);
   const [showComposer, setShowComposer] = useState(isDetail);
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -156,6 +164,31 @@ export function PostCard({
     }
   }
 
+  async function handleDelete() {
+    if (!isOwnPost || deleting) {
+      return;
+    }
+
+    if (!window.confirm("Delete this post? This cannot be undone.")) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function submitReport(reason: PostReportReason, details?: string) {
     const response = await fetch(`/api/posts/${post.id}/report`, {
       method: "POST",
@@ -263,15 +296,14 @@ export function PostCard({
             ) : null}
 
             {post.body ? (
-              <p
+              <PostBody
+                body={post.body}
                 className={cn(
                   "whitespace-pre-wrap leading-relaxed",
                   isTimeline ? "mt-2 text-[15px]" : "mt-3 text-sm",
                   post.type === "ARTICLE" && "mt-2",
                 )}
-              >
-                {post.body}
-              </p>
+              />
             ) : null}
 
             {post.book ? (
@@ -361,18 +393,40 @@ export function PostCard({
                   </span>
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="ml-auto h-8 w-8 text-muted-foreground"
-                disabled={reported}
-                onClick={() => setReportDialogOpen(true)}
-                aria-label={reported ? "Reported" : "Report post"}
-              >
-                <Flag className={cn("h-4 w-4", reported && "text-primary")} />
-              </Button>
+              {isOwnPost ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto h-8 w-8 text-muted-foreground hover:text-destructive"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  aria-label="Delete post"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto h-8 w-8 text-muted-foreground"
+                  disabled={reported}
+                  onClick={() => setReportDialogOpen(true)}
+                  aria-label={reported ? "Reported" : "Report post"}
+                >
+                  <Flag className={cn("h-4 w-4", reported && "text-primary")} />
+                </Button>
+              )}
             </div>
+
+            {post.likeCount > 0 ? (
+              <PostLikesList
+                postId={post.id}
+                likeCount={post.likeCount}
+                className="mt-1 px-3"
+              />
+            ) : null}
 
             {commentsOpen ? (
               <div className="mt-4 space-y-3 border-t border-border/80 pt-4">

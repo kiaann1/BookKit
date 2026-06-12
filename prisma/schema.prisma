@@ -51,6 +51,7 @@ enum NotificationType {
   POST_LIKE
   POST_COMMENT
   BOOK_REQUEST_UPDATED
+  NEW_MESSAGE
 }
 
 model User {

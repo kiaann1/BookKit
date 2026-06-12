@@ -4,6 +4,7 @@ export const NotificationType = {
   POST_LIKE: "POST_LIKE",
   POST_COMMENT: "POST_COMMENT",
   BOOK_REQUEST_UPDATED: "BOOK_REQUEST_UPDATED",
+  NEW_MESSAGE: "NEW_MESSAGE",
 } as const;
 
 export type NotificationTypeValue =

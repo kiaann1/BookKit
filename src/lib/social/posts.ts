@@ -205,6 +205,64 @@ export async function getFeedPosts(
   return { posts, nextCursor };
 }
 
+export async function getFollowingFeedPosts(
+  viewerId: string,
+  options: { cursor?: string; limit?: number } = {},
+): Promise<FeedPage> {
+  noStore();
+
+  const limit = options.limit ?? 20;
+
+  if (!(await isDatabaseAvailable())) {
+    return { posts: [], nextCursor: null };
+  }
+
+  const [followingIds, blockedUserIds] = await Promise.all([
+    getFollowingIds(viewerId),
+    getBlockedUserIds(viewerId),
+  ]);
+
+  const authorIds = followingIds.filter((id) => !blockedUserIds.includes(id));
+  if (authorIds.length === 0) {
+    return { posts: [], nextCursor: null };
+  }
+
+  const cursorFilter = options.cursor
+    ? {
+        OR: [
+          { createdAt: { lt: new Date(options.cursor.split("_")[0]!) } },
+          {
+            createdAt: new Date(options.cursor.split("_")[0]!),
+            id: { lt: options.cursor.split("_")[1]! },
+          },
+        ],
+      }
+    : null;
+
+  const visibilityFilter = { userId: { in: authorIds } };
+
+  const rows = await prisma.post.findMany({
+    where: cursorFilter
+      ? { AND: [cursorFilter, visibilityFilter] }
+      : visibilityFilter,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: postListInclude(viewerId),
+  });
+
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const posts = mapPosts(pageRows, viewerId);
+
+  const last = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && last
+      ? `${last.createdAt.toISOString()}_${last.id}`
+      : null;
+
+  return { posts, nextCursor };
+}
+
 export async function getFriendsRecentPosts(
   viewerId: string,
   options: { limit?: number; followingIds?: string[] } = {},
@@ -576,4 +634,51 @@ export async function reportPost(
   });
 
   return { success: true as const };
+}
+
+export async function deletePost(postId: string, userId: string) {
+  if (!(await isDatabaseAvailable())) {
+    return { error: "Database unavailable" as const };
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, userId: true },
+  });
+
+  if (!post) {
+    return { error: "Post not found" as const };
+  }
+
+  if (post.userId !== userId) {
+    return { error: "You can only delete your own posts" as const };
+  }
+
+  await prisma.post.delete({ where: { id: postId } });
+
+  return { success: true as const };
+}
+
+export async function getPostLikes(postId: string, viewerId: string) {
+  if (!(await isDatabaseAvailable())) {
+    return [];
+  }
+
+  const post = await getPostById(postId, viewerId);
+  if (!post) {
+    return null;
+  }
+
+  const rows = await prisma.postLike.findMany({
+    where: { postId },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: {
+      user: {
+        select: authorSelect,
+      },
+    },
+  });
+
+  return rows.map((row) => mapSocialAuthor(row.user));
 }

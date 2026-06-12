@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { FadeIn } from "@/components/motion/fade-in";
 import { AccountDataRights } from "@/components/settings/account-data-rights";
 import { PrivacySettingsForm } from "@/components/settings/privacy-settings-form";
 import { requireCompletedOnboarding } from "@/lib/auth/redirects";
@@ -14,17 +12,11 @@ export default async function PrivacySettingsPage() {
   await requireCompletedOnboarding();
 
   return (
-    <FadeIn className="mx-auto max-w-2xl space-y-8 px-4 py-5 sm:px-6 sm:py-10">
+    <div className="space-y-8">
       <PageHeader
-        title="Privacy"
-        description="Control who can see your profile details and social lists."
+        title="Privacy & data"
+        description="Control who sees your profile, and manage your personal data."
       />
-
-      <p className="text-sm text-muted-foreground">
-        <Link href="/settings" className="text-primary underline-offset-4 hover:underline">
-          Back to settings
-        </Link>
-      </p>
 
       <PrivacySettingsForm />
 
@@ -37,6 +29,6 @@ export default async function PrivacySettingsPage() {
         </div>
         <AccountDataRights />
       </div>
-    </FadeIn>
+    </div>
   );
 }

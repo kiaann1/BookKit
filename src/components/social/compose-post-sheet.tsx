@@ -86,7 +86,8 @@ function bodyLimitForType(type: PostType) {
 
 export function ComposePostSheet() {
   const router = useRouter();
-  const { open, initialType, initialBook, closeCompose } = useCompose();
+  const { open, initialType, initialBook, initialBody, closeCompose } =
+    useCompose();
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const [postType, setPostType] = useState<PostType>("TEXT");
@@ -105,11 +106,12 @@ export function ComposePostSheet() {
     if (open) {
       setPostType(initialType ?? "TEXT");
       setSelectedBook(initialBook);
+      setBody(initialBody ?? "");
       setBookQuery("");
       setBookOptions([]);
       setError(null);
     }
-  }, [open, initialType, initialBook]);
+  }, [open, initialType, initialBook, initialBody]);
 
   useEffect(() => {
     if (!open) {

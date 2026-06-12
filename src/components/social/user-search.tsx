@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useId, useState } from "react";
 import { Search, UserRound } from "lucide-react";
 import { FollowButton } from "@/components/social/follow-button";
@@ -22,7 +23,13 @@ function formatFollowerCount(count: number) {
   return `${count} followers`;
 }
 
-function UserResultRow({ user }: { user: UserSearchResult }) {
+function UserResultRow({
+  user,
+  viewerId,
+}: {
+  user: UserSearchResult;
+  viewerId?: string;
+}) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3">
       <Link
@@ -60,13 +67,15 @@ function UserResultRow({ user }: { user: UserSearchResult }) {
       <FollowButton
         username={user.username}
         initialFollowing={user.isFollowing}
-        isSelf={false}
+        isSelf={viewerId === user.id}
       />
     </div>
   );
 }
 
 export function UserSearch({ variant = "full", className }: UserSearchProps) {
+  const { data: session } = useSession();
+  const viewerId = session?.user?.id;
   const inputId = useId();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSearchResult[]>([]);
@@ -133,7 +142,11 @@ export function UserSearch({ variant = "full", className }: UserSearchProps) {
             ) : results.length > 0 ? (
               <div className="space-y-2">
                 {results.map((user) => (
-                  <UserResultRow key={user.id} user={user} />
+                  <UserResultRow
+                    key={user.id}
+                    user={user}
+                    viewerId={viewerId}
+                  />
                 ))}
               </div>
             ) : searched ? (
@@ -155,7 +168,13 @@ export function UserSearch({ variant = "full", className }: UserSearchProps) {
           ) : loading ? (
             <p className="text-sm text-muted-foreground">Searching…</p>
           ) : results.length > 0 ? (
-            results.map((user) => <UserResultRow key={user.id} user={user} />)
+            results.map((user) => (
+              <UserResultRow
+                key={user.id}
+                user={user}
+                viewerId={viewerId}
+              />
+            ))
           ) : searched ? (
             <p className="text-sm text-muted-foreground">
               No readers found for &ldquo;{query.trim()}&rdquo;.

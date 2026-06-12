@@ -19,12 +19,14 @@ export type ComposeBookTag = {
 type ComposeOptions = {
   type?: PostType;
   book?: ComposeBookTag;
+  body?: string;
 };
 
 type ComposeContextValue = {
   open: boolean;
   initialType: PostType | null;
   initialBook: ComposeBookTag | null;
+  initialBody: string | null;
   openCompose: (options?: PostType | ComposeOptions) => void;
   closeCompose: () => void;
 };
@@ -35,14 +37,17 @@ export function ComposeProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [initialType, setInitialType] = useState<PostType | null>(null);
   const [initialBook, setInitialBook] = useState<ComposeBookTag | null>(null);
+  const [initialBody, setInitialBody] = useState<string | null>(null);
 
   const openCompose = useCallback((options?: PostType | ComposeOptions) => {
     if (typeof options === "string") {
       setInitialType(options);
       setInitialBook(null);
+      setInitialBody(null);
     } else {
       setInitialType(options?.type ?? null);
       setInitialBook(options?.book ?? null);
+      setInitialBody(options?.body ?? null);
     }
     setOpen(true);
   }, []);
@@ -51,11 +56,19 @@ export function ComposeProvider({ children }: { children: ReactNode }) {
     setOpen(false);
     setInitialType(null);
     setInitialBook(null);
+    setInitialBody(null);
   }, []);
 
   const value = useMemo(
-    () => ({ open, initialType, initialBook, openCompose, closeCompose }),
-    [open, initialType, initialBook, openCompose, closeCompose],
+    () => ({
+      open,
+      initialType,
+      initialBook,
+      initialBody,
+      openCompose,
+      closeCompose,
+    }),
+    [open, initialType, initialBook, initialBody, openCompose, closeCompose],
   );
 
   return (

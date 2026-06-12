@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { SettingRow } from "@/components/settings/setting-row";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   FOLLOW_LIST_VISIBILITY_OPTIONS,
   type FollowListVisibility,
@@ -15,6 +18,7 @@ type PrivacySettings = {
 };
 
 export function PrivacySettingsForm() {
+  const privateAccountId = useId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,43 +88,31 @@ export function PrivacySettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Private account</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            When your account is private, only followers can see your posts,
-            bookshelf, and showcase.
-          </p>
-        </div>
-
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/80 p-4">
-          <input
-            type="checkbox"
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <SettingsSection
+        title="Account visibility"
+        description="Choose who can see your reading activity on BookKit."
+      >
+        <SettingRow
+          htmlFor={privateAccountId}
+          label="Private account"
+          description="Only approved followers can see your posts, bookshelf, and showcase."
+        >
+          <Switch
+            id={privateAccountId}
             checked={isPrivate}
-            onChange={(event) => setIsPrivate(event.target.checked)}
-            className="mt-1 h-4 w-4 rounded border-border"
+            disabled={saving}
+            onCheckedChange={setIsPrivate}
           />
-          <span>
-            <span className="font-medium">Private account</span>
-            <span className="mt-1 block text-sm text-muted-foreground">
-              People must follow you to see your reading activity.
-            </span>
-          </span>
-        </label>
-      </section>
+        </SettingRow>
+      </SettingsSection>
 
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Followers &amp; following lists</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Control who can open your followers and following lists from your
-            profile.
-          </p>
-        </div>
-
+      <SettingsSection
+        title="Followers & following lists"
+        description="Who can open your follower and following lists from your profile."
+      >
         <div className="space-y-2">
-          <Label>Who can see these lists</Label>
+          <Label>Visibility</Label>
           {FOLLOW_LIST_VISIBILITY_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -141,7 +133,7 @@ export function PrivacySettingsForm() {
             </button>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">
@@ -153,7 +145,7 @@ export function PrivacySettingsForm() {
       ) : null}
 
       <Button type="submit" disabled={saving}>
-        {saving ? "Saving…" : "Save privacy settings"}
+        {saving ? "Saving…" : "Save changes"}
       </Button>
     </form>
   );

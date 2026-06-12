@@ -159,4 +159,5 @@ export const reportPostSchema = z.object({
 export const feedQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(30).optional().default(20),
+  mode: z.enum(["foryou", "following"]).optional().default("foryou"),
 });

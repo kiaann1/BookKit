@@ -21,6 +21,11 @@ export type NotificationPayloadMap = {
     bookTitle: string;
     genres: string[];
   };
+  NEW_MESSAGE: {
+    actorId: string;
+    actorUsername: string;
+    conversationId: string;
+  };
 };
 
 export type NotificationItem = {

@@ -346,6 +346,25 @@ export async function sendMessage(
     },
   });
 
+  const recipientId = conversation.otherUser.id;
+
+  if (recipientId !== senderId) {
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { username: true },
+    });
+
+    if (sender?.username) {
+      const { notifyNewMessage } = await import("@/lib/notifications");
+      void notifyNewMessage(
+        recipientId,
+        senderId,
+        sender.username,
+        conversationId,
+      );
+    }
+  }
+
   await clearTypingFields(conversationId);
 
   return {

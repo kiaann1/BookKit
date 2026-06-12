@@ -6,7 +6,11 @@ import {
   MAX_POST_IMAGE_BYTES,
   MAX_POST_VIDEO_BYTES,
 } from "@/lib/constants/post-types";
-import { createPost, getFeedPosts } from "@/lib/social/posts";
+import {
+  createPost,
+  getFeedPosts,
+  getFollowingFeedPosts,
+} from "@/lib/social/posts";
 import { uploadFile } from "@/lib/storage";
 import {
   isAllowedPostImage,
@@ -31,6 +35,7 @@ export async function GET(request: Request) {
   const parsed = feedQuerySchema.safeParse({
     cursor: searchParams.get("cursor") ?? undefined,
     limit: searchParams.get("limit") ?? undefined,
+    mode: searchParams.get("mode") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -40,7 +45,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const feed = await getFeedPosts(auth.userId, parsed.data);
+  const feed =
+    parsed.data.mode === "following"
+      ? await getFollowingFeedPosts(auth.userId, parsed.data)
+      : await getFeedPosts(auth.userId, parsed.data);
   return NextResponse.json(feed);
 }
 

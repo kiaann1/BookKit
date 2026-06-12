@@ -2,14 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Share2, Trash2 } from "lucide-react";
+import { useCompose } from "@/components/social/compose-context";
 import { StarRating } from "@/components/shelf/star-rating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   SHELF_STATUS_OPTIONS,
-  type ShelfStatus,
+  ShelfStatus,
+  type ShelfStatus as ShelfStatusType,
 } from "@/lib/constants/shelf-status";
 import type { ShelfBook } from "@/lib/shelf/types";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ function formatShortDate(date: Date | null) {
 
 export function ShelfBookCardActions({ book }: ShelfBookCardActionsProps) {
   const router = useRouter();
+  const { openCompose } = useCompose();
   const [status, setStatus] = useState(book.shelfStatus);
   const [rating, setRating] = useState<number | null>(book.rating);
   const [startedAt, setStartedAt] = useState(toDateInputValue(book.startedAt));
@@ -80,7 +83,7 @@ export function ShelfBookCardActions({ book }: ShelfBookCardActionsProps) {
     }
   }
 
-  async function updateStatus(nextStatus: ShelfStatus) {
+  async function updateStatus(nextStatus: ShelfStatusType) {
     const ok = await patchShelf({ status: nextStatus });
     if (ok) {
       setStatus(nextStatus);
@@ -224,17 +227,42 @@ export function ShelfBookCardActions({ book }: ShelfBookCardActionsProps) {
         </div>
       ) : null}
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
-        disabled={isLoading}
-        onClick={() => void removeFromShelf()}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Remove
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        {status === ShelfStatus.CURRENTLY_READING ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 px-2.5 text-xs"
+            disabled={isLoading}
+            onClick={() =>
+              openCompose({
+                book: {
+                  id: book.id,
+                  title: book.title,
+                  author: book.author,
+                },
+                body: `Currently reading ${book.title} 📖`,
+              })
+            }
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </Button>
+        ) : null}
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+          disabled={isLoading}
+          onClick={() => void removeFromShelf()}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Remove
+        </Button>
+      </div>
 
       {error ? (
         <p className="text-xs text-destructive" role="alert">

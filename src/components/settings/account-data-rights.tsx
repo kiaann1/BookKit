@@ -2,6 +2,7 @@
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,16 +76,11 @@ export function AccountDataRights() {
   }
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium">Download your data</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Get a JSON copy of your profile, shelf, posts, and comments. You can
-            request this up to three times per hour.
-          </p>
-        </div>
-
+    <div className="space-y-6">
+      <SettingsSection
+        title="Download your data"
+        description="Get a JSON copy of your profile, shelf, posts, and comments. You can request this up to three times per hour."
+      >
         {exportError ? (
           <p className="text-sm text-destructive" role="alert">
             {exportError}
@@ -99,18 +95,13 @@ export function AccountDataRights() {
         >
           {exporting ? "Preparing export…" : "Download my data"}
         </Button>
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-4 rounded-2xl border border-destructive/30 bg-card p-5 sm:p-6">
-        <div>
-          <h2 className="font-medium text-destructive">Delete account</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Permanently remove your account, posts, shelf, and social data. This
-            cannot be undone. PDFs you uploaded as an admin are not deleted
-            here.
-          </p>
-        </div>
-
+      <SettingsSection
+        title="Delete account"
+        description="Permanently remove your account, posts, shelf, and social data. This cannot be undone. PDFs you uploaded as an admin are not deleted here."
+        variant="danger"
+      >
         <form onSubmit={handleDelete} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="delete-password">Current password</Label>
@@ -148,7 +139,7 @@ export function AccountDataRights() {
             {deleting ? "Deleting…" : "Delete my account"}
           </Button>
         </form>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

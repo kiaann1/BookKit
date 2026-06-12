@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PostCard } from "@/components/social/post-card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,10 @@ type FeedViewProps = {
   initialCursor: string | null;
   endpoint?: string;
   variant?: "cards" | "timeline";
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyActionHref?: string;
+  emptyActionLabel?: string;
 };
 
 export function FeedView({
@@ -17,6 +22,10 @@ export function FeedView({
   initialCursor,
   endpoint = "/api/posts",
   variant = "cards",
+  emptyTitle = "Nothing here yet",
+  emptyDescription = "When readers share posts, they'll show up here.",
+  emptyActionHref,
+  emptyActionLabel,
 }: FeedViewProps) {
   const [posts, setPosts] = useState(initialPosts);
   const [cursor, setCursor] = useState(initialCursor);
@@ -56,10 +65,15 @@ export function FeedView({
   if (posts.length === 0) {
     return (
       <div className="px-6 py-16 text-center">
-        <p className="font-medium">Nothing here yet</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          When readers share posts, they&apos;ll show up here.
-        </p>
+        <p className="font-medium">{emptyTitle}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{emptyDescription}</p>
+        {emptyActionHref && emptyActionLabel ? (
+          <Link href={emptyActionHref} className="mt-4 inline-block">
+            <Button variant="outline" size="sm">
+              {emptyActionLabel}
+            </Button>
+          </Link>
+        ) : null}
       </div>
     );
   }
