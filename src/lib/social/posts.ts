@@ -9,6 +9,7 @@ import { getFollowingIds, isFollowing } from "@/lib/social/follow";
 import { mapSocialAuthor } from "@/lib/social/map";
 import { canViewFullProfile } from "@/lib/social/privacy";
 import type { CreatePostInput } from "@/lib/validations/post";
+import { notifyPostComment, notifyPostLike } from "@/lib/notifications";
 import { sanitizeOptionalPlainText, sanitizePlainText } from "@/lib/security/sanitize";
 import { getPostMediaApiUrl } from "@/lib/storage/post-media";
 import type { CommentItem, FeedPage, PostItem } from "@/lib/social/types";
@@ -388,7 +389,7 @@ export async function togglePostLike(postId: string, userId: string) {
 
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
 
   if (!post) {
@@ -407,6 +408,16 @@ export async function togglePostLike(postId: string, userId: string) {
   }
 
   await prisma.postLike.create({ data: { postId, userId } });
+
+  const actor = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true },
+  });
+
+  if (actor?.username) {
+    void notifyPostLike(post.userId, userId, actor.username, postId);
+  }
+
   return { liked: true };
 }
 
@@ -490,7 +501,7 @@ export async function createComment(
 
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
 
   if (!post) {
@@ -506,6 +517,21 @@ export async function createComment(
     data: { postId, userId, body: sanitizedBody },
     select: { id: true },
   });
+
+  const actor = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true },
+  });
+
+  if (actor?.username) {
+    void notifyPostComment(
+      post.userId,
+      userId,
+      actor.username,
+      postId,
+      comment.id,
+    );
+  }
 
   return { commentId: comment.id };
 }

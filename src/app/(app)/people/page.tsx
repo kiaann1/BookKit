@@ -22,10 +22,10 @@ export default async function PeoplePage() {
       <UserSearch variant="full" />
 
       <p className="text-sm text-muted-foreground">
-        Direct messaging is coming in a later update. For now, follow readers
-        and catch their posts in your{" "}
-        <Link href="/feed" className="text-primary underline-offset-4 hover:underline">
-          feed
+        When you and another reader follow each other, you can message them from
+        their profile or your{" "}
+        <Link href="/messages" className="text-primary underline-offset-4 hover:underline">
+          inbox
         </Link>
         .
       </p>

@@ -5,6 +5,7 @@ import {
 } from "@/lib/constants/book-request-status";
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { notifyBookRequestUpdated } from "@/lib/notifications";
 import type { CreateBookRequestInput } from "@/lib/validations/book-request";
 import { sanitizeOptionalPlainText } from "@/lib/security/sanitize";
 
@@ -238,7 +239,13 @@ export async function updateBookRequestAdmin(
 
   const existing = await prisma.bookRequest.findUnique({
     where: { id },
-    select: { id: true },
+    select: {
+      id: true,
+      userId: true,
+      title: true,
+      status: true,
+      linkedBookId: true,
+    },
   });
 
   if (!existing) {
@@ -262,6 +269,14 @@ export async function updateBookRequestAdmin(
     };
   }
 
+  const linkedBook =
+    input.linkedBookId !== undefined && input.linkedBookId
+      ? await prisma.book.findUnique({
+          where: { id: input.linkedBookId },
+          select: { title: true },
+        })
+      : null;
+
   const updated = await prisma.bookRequest.update({
     where: { id },
     data: {
@@ -279,6 +294,17 @@ export async function updateBookRequestAdmin(
     },
     include: listInclude(""),
   });
+
+  const nextStatus = status ?? existing.status;
+  if (nextStatus !== existing.status || input.linkedBookId !== undefined) {
+    void notifyBookRequestUpdated(existing.userId, {
+      requestId: id,
+      status: nextStatus,
+      title: existing.title,
+      bookId: updated.linkedBookId,
+      bookTitle: linkedBook?.title ?? updated.linkedBook?.title ?? null,
+    });
+  }
 
   return { request: mapRequest(updated, "") };
 }
@@ -330,11 +356,11 @@ export async function fulfillBookRequest(requestId: string, bookId: string) {
   const [request, book] = await Promise.all([
     prisma.bookRequest.findUnique({
       where: { id: requestId },
-      select: { id: true },
+      select: { id: true, userId: true, title: true },
     }),
     prisma.book.findUnique({
       where: { id: bookId },
-      select: { id: true },
+      select: { id: true, title: true },
     }),
   ]);
 
@@ -351,6 +377,14 @@ export async function fulfillBookRequest(requestId: string, bookId: string) {
       status: BookRequestStatus.ADDED,
       linkedBookId: bookId,
     },
+  });
+
+  void notifyBookRequestUpdated(request.userId, {
+    requestId,
+    status: BookRequestStatus.ADDED,
+    title: request.title,
+    bookId,
+    bookTitle: book.title,
   });
 
   return { success: true as const };
@@ -372,28 +406,36 @@ export async function fulfillMatchingBookRequests(book: {
     where: {
       status: { in: [BookRequestStatus.PENDING, BookRequestStatus.SOURCED] },
     },
-    select: { id: true, title: true, author: true },
+    select: { id: true, userId: true, title: true, author: true },
   });
 
-  const matchingIds = candidates
-    .filter(
-      (request) =>
-        normalizeMatch(request.title) === title &&
-        normalizeMatch(request.author) === author,
-    )
-    .map((request) => request.id);
+  const matching = candidates.filter(
+    (request) =>
+      normalizeMatch(request.title) === title &&
+      normalizeMatch(request.author) === author,
+  );
 
-  if (matchingIds.length === 0) {
+  if (matching.length === 0) {
     return 0;
   }
 
   await prisma.bookRequest.updateMany({
-    where: { id: { in: matchingIds } },
+    where: { id: { in: matching.map((request) => request.id) } },
     data: {
       status: BookRequestStatus.ADDED,
       linkedBookId: book.id,
     },
   });
 
-  return matchingIds.length;
+  for (const request of matching) {
+    void notifyBookRequestUpdated(request.userId, {
+      requestId: request.id,
+      status: BookRequestStatus.ADDED,
+      title: request.title,
+      bookId: book.id,
+      bookTitle: book.title,
+    });
+  }
+
+  return matching.length;
 }

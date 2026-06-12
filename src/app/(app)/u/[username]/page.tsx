@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
 import { FeedView } from "@/components/social/feed-view";
 import { FollowCountLinks } from "@/components/social/follow-count-links";
+import { MessageButton } from "@/components/messages/message-button";
 import { FollowButton } from "@/components/social/follow-button";
 import { ProfileOptionsMenu } from "@/components/social/profile-options-menu";
 import { ShowcaseGrid } from "@/components/profile/showcase-grid";
@@ -108,6 +109,9 @@ export default async function PublicProfilePage({
                       initialFollowing={profile.isFollowing}
                       isSelf={profile.isSelf}
                     />
+                    {profile.canMessage ? (
+                      <MessageButton username={profile.username} />
+                    ) : null}
                     <ProfileOptionsMenu
                       username={profile.username}
                       initialBlocked={profile.isBlockedByViewer}

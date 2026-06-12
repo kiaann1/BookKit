@@ -66,7 +66,7 @@ export function FeedView({
 
   if (variant === "timeline") {
     return (
-      <div>
+      <div role="feed" aria-label="Posts">
         {posts.map((post) => (
           <PostCard key={post.id} post={post} variant="timeline" />
         ))}
@@ -89,7 +89,7 @@ export function FeedView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="feed" aria-label="Posts">
       {posts.map((post) => (
         <PostCard key={post.id} post={post} />
       ))}

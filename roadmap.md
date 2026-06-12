@@ -3,7 +3,7 @@
 Actionable next steps by phase. For vision, data model, and stack rationale see [PROJECT.md](./PROJECT.md).
 
 **Last updated:** 2026-06-10  
-**Current position:** Phases 0–6 complete in code. **Next:** Phase 7 (notifications & polish).
+**Current position:** Phases 0–7 complete in code (email deferred). **Next:** Phase 8 (beta & iterate).
 
 ---
 
@@ -18,7 +18,7 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 | 4 | Genres & recommendations | ✅ Complete |
 | 5 | Social core | ✅ Complete |
 | 6 | Book requests | ✅ Complete |
-| 7 | Notifications & polish | 🔴 Partial |
+| 7 | Notifications & polish | ✅ Complete (email deferred) |
 | 8 | Beta & iterate | 🔴 Not started |
 | 9 | Mobile app | ⏸ Post-traction |
 
@@ -173,52 +173,29 @@ Request submitted → visible in admin queue → status updated → requester se
 
 ---
 
-## Phase 7 — Notifications & polish
+## Phase 7 — Notifications & polish ✅
 
 **Goal:** Retention hooks and production-ready UX.
 
 ### Done
 
-- Password reset pages + `PasswordResetToken` model (email send not wired)
-- Loading skeletons on key routes
-- Mobile-responsive shell and bottom nav
-- Reader loading/error states (Phase 3)
+- `Notification` model + types (`FOLLOW`, `POST_LIKE`, `POST_COMMENT`, `BOOK_REQUEST_UPDATED`, `NEW_BOOK_IN_GENRE`)
+- `GET`/`PATCH` `/api/notifications`; bell in header with unread badge; `/notifications` page
+- Emit on follow, like, comment, book request update, new published book in user genres
+- `Conversation` + `Message` models; `/messages` inbox + thread UI
+- `GET`/`POST` `/api/messages`, `GET`/`PATCH` `/api/messages/[id]`; Message button on profiles (mutual follow)
+- `error.tsx` on root, catalog, feed, reader
+- Feed `role="feed"`, star rating aria improvements; catalog covers via `BookCoverImage` + Suspense
+- Legal pages + GDPR export/delete (prior session)
+- `npm run verify:phase7`, `GET /api/health/phase7`
 
-### Next up
+### Deferred
 
-#### Notifications
-
-- [ ] **Prisma model** — `Notification` (`userId`, `type`, `payload` JSON, `readAt`)
-- [ ] **Notification types** — `NEW_BOOK_IN_GENRE`, `FOLLOW`, `POST_LIKE`, `POST_COMMENT`, `BOOK_REQUEST_UPDATED`
-- [ ] **`GET /api/notifications`**, `PATCH` mark read / mark all read
-- [ ] **Notification bell** — header dropdown + unread badge
-- [ ] **Emit on events** — follow, comment, like, book added (genre match), request fulfilled
-
-#### Messaging (post–social core)
-
-- [ ] **Prisma models** — `Conversation`, `Message` (or thread per pair)
-- [ ] **Inbox UI** — `/messages` list + thread view
-- [ ] **`GET`/`POST` `/api/messages`** — send, list threads, mark read
-- [ ] **Start from profile** — “Message” button on `/u/[username]` (mutual follow or open DM policy TBD)
-
-#### Email
-
-- [ ] **Resend integration** — `RESEND_API_KEY`; send password reset (replace dev log)
-- [ ] **Transactional templates** — reset password, “book you requested was added”
-- [ ] **Digest** (optional) — weekly new books in your genres; opt-in in settings
-
-#### Polish & legal
-
-- [ ] **`error.tsx` boundaries** — root, catalog, reader, feed
-- [ ] **Empty states audit** — feed, recommendations, notifications, requests
-- [ ] **Accessibility pass** — reader focus, feed keyboard nav, star rating aria
-- [ ] **Performance** — `next/image` on all covers; lazy-load catalog; PDF API memory audit
-- [x] **Legal pages** — `/terms`, `/privacy`
-- [x] **Account export/delete** (GDPR-minded)
+- [ ] **Email (Resend)** — password reset, request fulfilled, digests
 
 ### Exit criteria
 
-User receives in-app notification when followed or request fulfilled. Password reset email works in production.
+User receives in-app notification when followed or request fulfilled. ✅ (Email deferred.)
 
 ---
 

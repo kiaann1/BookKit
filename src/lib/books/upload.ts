@@ -2,6 +2,7 @@ import {
   fulfillBookRequest,
   fulfillMatchingBookRequests,
 } from "@/lib/book-requests";
+import { notifyUsersOfNewBook } from "@/lib/notifications";
 import { ensureBookMetadata } from "@/lib/books/ensure-metadata";
 import {
   bookSlugWithAuthor,
@@ -322,6 +323,14 @@ export async function createBookFromForm(
         author: updated.author,
       });
     }
+
+    void notifyUsersOfNewBook({
+      id: updated.id,
+      title: updated.title,
+      genres: updated.genres,
+      status: updated.status,
+      uploadedById,
+    });
 
     return { book: updated };
   } catch (error) {

@@ -19,7 +19,11 @@ export function StarRating({
   const iconClass = size === "sm" ? "h-4 w-4" : "h-5 w-5";
 
   return (
-    <div className="inline-flex items-center gap-0.5" role="group" aria-label="Rating">
+    <div
+      className="inline-flex items-center gap-0.5"
+      role={onChange ? "radiogroup" : "img"}
+      aria-label={value ? `Rated ${value} out of 5 stars` : "Rating"}
+    >
       {Array.from({ length: 5 }).map((_, index) => {
         const starValue = index + 1;
         const filled = value !== null && starValue <= value;
@@ -40,6 +44,8 @@ export function StarRating({
               onChange && !disabled && "hover:text-amber-500",
               filled ? "text-amber-500" : "text-muted-foreground/40",
             )}
+            role={onChange ? "radio" : undefined}
+            aria-checked={onChange ? filled : undefined}
             aria-label={`${starValue} star${starValue === 1 ? "" : "s"}`}
           >
             <Star

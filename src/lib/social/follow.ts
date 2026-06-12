@@ -1,5 +1,6 @@
 import { isDatabaseAvailable } from "@/lib/db/health";
 import { prisma } from "@/lib/db";
+import { notifyNewFollow } from "@/lib/notifications";
 import type { FollowCounts } from "@/lib/social/types";
 
 export async function getUserIdByUsername(username: string) {
@@ -54,22 +55,38 @@ export async function followUser(followerId: string, followingId: string) {
     return { error: "Database unavailable" as const };
   }
 
-  const target = await prisma.user.findUnique({
-    where: { id: followingId },
-    select: { id: true },
-  });
+  const [target, follower] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: followingId },
+      select: { id: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: followerId },
+      select: { username: true },
+    }),
+  ]);
 
   if (!target) {
     return { error: "User not found" as const };
   }
 
-  await prisma.follow.upsert({
+  const existing = await prisma.follow.findUnique({
     where: {
       followerId_followingId: { followerId, followingId },
     },
-    create: { followerId, followingId },
-    update: {},
   });
+
+  if (existing) {
+    return { success: true as const };
+  }
+
+  await prisma.follow.create({
+    data: { followerId, followingId },
+  });
+
+  if (follower?.username) {
+    void notifyNewFollow(followingId, followerId, follower.username);
+  }
 
   return { success: true as const };
 }

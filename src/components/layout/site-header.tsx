@@ -3,6 +3,7 @@ import { Logo } from "@/components/brand/logo";
 import { DevAuthBanner } from "@/components/layout/dev-auth-banner";
 import { MainNav } from "@/components/layout/main-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { isAdmin } from "@/lib/auth/admin";
 import { isAuthDisabled } from "@/lib/dev-auth";
@@ -55,6 +56,12 @@ export async function SiteHeader() {
                   </Button>
                 </Link>
               )}
+              <NotificationBell />
+              <Link href="/messages" className="hidden sm:inline">
+                <Button variant="ghost" size="sm">
+                  Messages
+                </Button>
+              </Link>
               <Link
                 href={`/u/${session.user.username}`}
                 className="hidden rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/8 hover:text-foreground sm:inline"

@@ -45,6 +45,14 @@ enum BookRequestStatus {
   DECLINED
 }
 
+enum NotificationType {
+  NEW_BOOK_IN_GENRE
+  FOLLOW
+  POST_LIKE
+  POST_COMMENT
+  BOOK_REQUEST_UPDATED
+}
+
 model User {
   id                    String    @id @default(cuid())
   email                 String    @unique
@@ -82,8 +90,12 @@ model User {
   following      Follow[]     @relation("Follower")
   blockedUsers   UserBlock[]  @relation("BlocksInitiated")
   blockedBy      UserBlock[]  @relation("BlocksReceived")
-  bookRequests   BookRequest[]
-  bookRequestVotes BookRequestVote[]
+  bookRequests       BookRequest[]
+  bookRequestVotes   BookRequestVote[]
+  notifications      Notification[]
+  conversationsLow   Conversation[] @relation("ConversationsLow")
+  conversationsHigh  Conversation[] @relation("ConversationsHigh")
+  messagesSent       Message[]
 }
 
 model Book {
@@ -317,4 +329,49 @@ model BookRequestVote {
 
   @@id([requestId, userId])
   @@index([requestId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model Conversation {
+  id                String   @id @default(cuid())
+  participantLowId  String
+  participantHighId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastMessageAt     DateTime @default(now())
+
+  participantLow  User      @relation("ConversationsLow", fields: [participantLowId], references: [id], onDelete: Cascade)
+  participantHigh User      @relation("ConversationsHigh", fields: [participantHighId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@unique([participantLowId, participantHighId])
+  @@index([participantLowId, lastMessageAt])
+  @@index([participantHighId, lastMessageAt])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String    @db.Text
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
 }

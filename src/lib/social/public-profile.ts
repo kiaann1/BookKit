@@ -8,6 +8,7 @@ import {
   canViewFullProfile,
 } from "@/lib/social/privacy";
 import type { PublicProfile } from "@/lib/social/types";
+import { canMessageUser } from "@/lib/messages";
 import { getShowcaseBooks, getUserShelf } from "@/lib/shelf";
 
 export async function getPublicProfile(
@@ -39,13 +40,14 @@ export async function getPublicProfile(
     return null;
   }
 
-  const [followCounts, following, blockStatus] = await Promise.all([
+  const isSelf = user.id === viewerId;
+
+  const [followCounts, following, blockStatus, canMessage] = await Promise.all([
     getFollowCounts(user.id),
     isFollowing(viewerId, user.id),
     getBlockStatus(viewerId, user.id),
+    isSelf ? Promise.resolve(false) : canMessageUser(viewerId, user.id),
   ]);
-
-  const isSelf = user.id === viewerId;
   const privacyContext = {
     isPrivate: user.isPrivate,
     followersListVisibility: user.followersListVisibility,
@@ -73,6 +75,7 @@ export async function getPublicProfile(
       canViewFollowLists(privacyContext),
     isBlockedByViewer: blockStatus.isBlockedByViewer,
     hasBlockedViewer: blockStatus.hasBlockedViewer,
+    canMessage: canMessage && !blockStatus.hasBlockedViewer && !blockStatus.isBlockedByViewer,
   };
 
   if (!profile.canViewFullProfile) {

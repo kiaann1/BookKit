@@ -129,6 +129,20 @@ export function MobileNav({ items, username, authDisabled }: MobileNavProps) {
                 @{username}
               </Link>
               <Link
+                href="/messages"
+                onClick={closeMenu}
+                className="block rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground"
+              >
+                Messages
+              </Link>
+              <Link
+                href="/notifications"
+                onClick={closeMenu}
+                className="block rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground"
+              >
+                Notifications
+              </Link>
+              <Link
                 href="/settings"
                 onClick={closeMenu}
                 className="block rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground"

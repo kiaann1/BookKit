@@ -79,6 +79,7 @@ export type PublicProfile = {
   canViewFollowLists: boolean;
   isBlockedByViewer: boolean;
   hasBlockedViewer: boolean;
+  canMessage: boolean;
 };
 
 export type UserSearchResult = SocialAuthor & {

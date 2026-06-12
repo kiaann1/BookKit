@@ -130,6 +130,72 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ---------------------------------------------------------------------------
+-- 7. Notifications & messages (20250610230000_notifications_messages)
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN
+  CREATE TYPE "NotificationType" AS ENUM ('NEW_BOOK_IN_GENRE', 'FOLLOW', 'POST_LIKE', 'POST_COMMENT', 'BOOK_REQUEST_UPDATED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "payload" JSONB NOT NULL,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "Conversation" (
+    "id" TEXT NOT NULL,
+    "participantLowId" TEXT NOT NULL,
+    "participantHighId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastMessageAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "Message" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "Notification_userId_createdAt_idx" ON "Notification"("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "Notification_userId_readAt_idx" ON "Notification"("userId", "readAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "Conversation_participantLowId_participantHighId_key" ON "Conversation"("participantLowId", "participantHighId");
+CREATE INDEX IF NOT EXISTS "Conversation_participantLowId_lastMessageAt_idx" ON "Conversation"("participantLowId", "lastMessageAt" DESC);
+CREATE INDEX IF NOT EXISTS "Conversation_participantHighId_lastMessageAt_idx" ON "Conversation"("participantHighId", "lastMessageAt" DESC);
+CREATE INDEX IF NOT EXISTS "Message_conversationId_createdAt_idx" ON "Message"("conversationId", "createdAt");
+
+DO $$ BEGIN
+  ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_participantLowId_fkey" FOREIGN KEY ("participantLowId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_participantHighId_fkey" FOREIGN KEY ("participantHighId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------------------------------------------------------------------------
 -- Optional: mark migrations applied (so future `prisma migrate deploy` skips them)
 -- Only run if these rows are not already in "_prisma_migrations".
 -- ---------------------------------------------------------------------------
@@ -137,4 +203,5 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- VALUES
 --   (gen_random_uuid()::text, '', NOW(), '20250610180000_user_privacy', NULL, NULL, NOW(), 1),
 --   (gen_random_uuid()::text, '', NOW(), '20250610190000_post_media', NULL, NULL, NOW(), 1),
---   (gen_random_uuid()::text, '', NOW(), '20250610220000_book_requests', NULL, NULL, NOW(), 1);
+--   (gen_random_uuid()::text, '', NOW(), '20250610220000_book_requests', NULL, NULL, NOW(), 1),
+--   (gen_random_uuid()::text, '', NOW(), '20250610230000_notifications_messages', NULL, NULL, NOW(), 1);
