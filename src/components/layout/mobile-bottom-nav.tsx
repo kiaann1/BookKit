@@ -4,11 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookOpen, Home, MessageCircle, User } from "lucide-react";
+import { ComposeFab } from "@/components/social/compose-fab";
 import { cn } from "@/lib/utils";
 
-const tabs = [
+const leftTabs = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/catalog", label: "Catalog", icon: BookOpen },
+] as const;
+
+const rightTabs = [
   { href: "/messages", label: "Messages", icon: MessageCircle },
 ] as const;
 
@@ -85,28 +89,42 @@ export function MobileBottomNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Main navigation"
     >
-      <div className="mx-auto flex h-[3.85rem] max-w-6xl items-stretch px-2">
-        {tabs.map((tab) => (
+      <div className="mx-auto flex h-[3.85rem] max-w-6xl items-stretch px-1">
+        <div className="flex min-w-0 flex-1 items-stretch">
+          {leftTabs.map((tab) => (
+            <NavTab
+              key={tab.href}
+              {...tab}
+              isActive={
+                pathname === tab.href || pathname.startsWith(`${tab.href}/`)
+              }
+            />
+          ))}
+        </div>
+
+        <div className="flex w-[4.5rem] shrink-0 items-center justify-center">
+          <ComposeFab variant="nav" />
+        </div>
+
+        <div className="flex min-w-0 flex-1 items-stretch">
+          {rightTabs.map((tab) => (
+            <NavTab
+              key={tab.href}
+              {...tab}
+              isActive={pathname === "/messages"}
+            />
+          ))}
           <NavTab
-            key={tab.href}
-            {...tab}
+            href={profileHref}
+            label="Profile"
+            icon={User}
             isActive={
-              tab.href === "/messages"
-                ? pathname === "/messages"
-                : pathname === tab.href || pathname.startsWith(`${tab.href}/`)
+              username
+                ? pathname === profileHref || pathname.startsWith(`${profileHref}/`)
+                : pathname === "/profile" || pathname.startsWith("/profile/")
             }
           />
-        ))}
-        <NavTab
-          href={profileHref}
-          label="Profile"
-          icon={User}
-          isActive={
-            username
-              ? pathname === profileHref || pathname.startsWith(`${profileHref}/`)
-              : pathname === "/profile" || pathname.startsWith("/profile/")
-          }
-        />
+        </div>
       </div>
     </nav>
   );

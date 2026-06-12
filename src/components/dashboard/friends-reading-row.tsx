@@ -14,7 +14,7 @@ export function FriendsReadingRow({ items }: FriendsReadingRowProps) {
   }
 
   return (
-    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 scrollbar-thin">
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 scrollbar-hide">
       {items.map((item) => (
         <Link
           key={`${item.reader.id}-${item.book.id}`}

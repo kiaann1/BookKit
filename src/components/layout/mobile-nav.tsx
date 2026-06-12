@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -10,7 +11,6 @@ import {
   Compass,
   LayoutGrid,
   Menu,
-  Plus,
   Settings,
   Shield,
   Sparkles,
@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/layout/sign-out-button";
-import { useCompose } from "@/components/social/compose-context";
 import type { NavSection } from "@/lib/layout/nav-items";
 import { cn } from "@/lib/utils";
 
@@ -43,10 +42,14 @@ type MobileNavProps = {
 export function MobileNav({ sections, username, authDisabled }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [openedAtPath, setOpenedAtPath] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const { openCompose } = useCompose();
   const isMenuOpen = open && openedAtPath === pathname;
   const profileHref = `/u/${username}`;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   function closeMenu() {
     setOpen(false);
@@ -83,36 +86,27 @@ export function MobileNav({ sections, username, authDisabled }: MobileNavProps) 
     };
   }, [isMenuOpen]);
 
-  return (
-    <div className="md:hidden">
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-        aria-expanded={isMenuOpen}
-        aria-controls="mobile-nav"
-        onClick={toggleMenu}
-      >
-        {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
+  const drawer = mounted
+    ? createPortal(
+        <AnimatePresence>
+          {isMenuOpen ? (
+            <>
+              <motion.button
+                key="mobile-nav-backdrop"
+                type="button"
+                aria-label="Close menu"
+                className="fixed inset-0 z-[80] bg-black/45 backdrop-blur-[2px] md:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={closeMenu}
+              />
 
-      <AnimatePresence>
-        {isMenuOpen ? (
-          <>
-            <motion.button
-              type="button"
-              aria-label="Close menu"
-              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={closeMenu}
-            />
-
-            <motion.nav
-              id="mobile-nav"
-              className="fixed inset-y-0 right-0 z-50 flex w-[min(88vw,21rem)] flex-col border-l border-border/80 bg-background shadow-2xl"
+              <motion.nav
+                key="mobile-nav-drawer"
+                id="mobile-nav"
+              className="fixed inset-y-0 right-0 z-[90] flex h-[100dvh] w-[min(88vw,20rem)] flex-col border-l border-border/80 bg-background shadow-2xl md:hidden"
               style={{
                 paddingBottom: "env(safe-area-inset-bottom, 0px)",
                 paddingTop: "env(safe-area-inset-top, 0px)",
@@ -120,9 +114,13 @@ export function MobileNav({ sections, username, authDisabled }: MobileNavProps) 
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                type: "tween",
+                duration: 0.24,
+                ease: [0.22, 1, 0.36, 1],
+              }}
             >
-              <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-4">
                 <div>
                   <p className="font-display text-lg font-semibold tracking-tight">
                     Menu
@@ -146,24 +144,10 @@ export function MobileNav({ sections, username, authDisabled }: MobileNavProps) 
                 </Button>
               </div>
 
-              <div className="px-4 py-3">
-                <Button
-                  type="button"
-                  className="w-full touch-manipulation"
-                  onClick={() => {
-                    closeMenu();
-                    openCompose();
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  New post
-                </Button>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 scrollbar-hide">
                 {sections.map((section) => (
-                  <div key={section.title} className="mb-4">
-                    <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div key={section.title} className="mb-5">
+                    <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       {section.title}
                     </p>
                     <ul className="space-y-0.5">
@@ -205,14 +189,31 @@ export function MobileNav({ sections, username, authDisabled }: MobileNavProps) 
               </div>
 
               {!authDisabled ? (
-                <div className="border-t border-border/60 px-4 py-4">
+                <div className="shrink-0 border-t border-border/60 px-4 py-4">
                   <SignOutButton />
                 </div>
               ) : null}
-            </motion.nav>
-          </>
-        ) : null}
-      </AnimatePresence>
+              </motion.nav>
+            </>
+          ) : null}
+        </AnimatePresence>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className="md:hidden">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={isMenuOpen}
+        aria-controls="mobile-nav"
+        onClick={toggleMenu}
+      >
+        {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+      {drawer}
     </div>
   );
 }
