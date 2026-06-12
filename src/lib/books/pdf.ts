@@ -4,12 +4,16 @@ import {
 } from "@/lib/books/paths";
 import { BookStatus } from "@/lib/constants/book-status";
 import { prisma } from "@/lib/db";
-import { fileExistsInAnyBackend } from "@/lib/storage/resolve";
+import { localFileExists } from "@/lib/storage/resolve";
+import { blobObjectExists } from "@/lib/storage/blob";
 import { bookPdfKey } from "@/lib/storage/keys";
+import { isS3Configured, s3ObjectExists } from "@/lib/storage/s3";
 
 /** Blob path from before the canonical Ascended id (still used in seed rows). */
 const THE_ASCENDED_LEGACY_PDF_KEY =
   "books/the-ascended--grenwich-&-lennox/original.pdf";
+
+const THE_ASCENDED_LEGACY_ID = "the-ascended--grenwich-&-lennox";
 
 function canQueryDatabase() {
   return (
@@ -22,50 +26,71 @@ function isUsablePdfKey(pdfKey: string | null | undefined) {
   return Boolean(pdfKey && pdfKey !== "pending" && pdfKey.trim().length > 0);
 }
 
-async function firstExistingPdfKey(keys: string[]) {
-  for (const key of keys) {
-    if (await fileExistsInAnyBackend(key)) {
-      return key;
-    }
+function fallbackKeysForCandidate(candidate: string) {
+  const keys = [bookPdfKey(candidate)];
+
+  if (
+    candidate === THE_ASCENDED_BOOK_ID ||
+    candidate === THE_ASCENDED_LEGACY_ID
+  ) {
+    keys.push(THE_ASCENDED_LEGACY_PDF_KEY);
   }
-  return null;
+
+  return keys;
+}
+
+async function keyExistsOnRemoteBackend(key: string) {
+  if (await blobObjectExists(key)) {
+    return true;
+  }
+
+  return isS3Configured() && (await s3ObjectExists(key));
 }
 
 export async function getPublishedBookPdfKey(bookId: string) {
   const candidates = getBookIdLookupCandidates(bookId);
   const triedKeys = new Set<string>();
+  const orderedKeys: string[] = [];
 
   for (const candidate of candidates) {
-    const conventionalKey = bookPdfKey(candidate);
-    const fallbackKeys = [conventionalKey];
-
-    if (candidate === THE_ASCENDED_BOOK_ID) {
-      fallbackKeys.push(THE_ASCENDED_LEGACY_PDF_KEY);
-    }
-
-    for (const key of fallbackKeys) {
-      if (triedKeys.has(key)) {
-        continue;
-      }
-      triedKeys.add(key);
-      if (await fileExistsInAnyBackend(key)) {
-        return key;
+    for (const key of fallbackKeysForCandidate(candidate)) {
+      if (!triedKeys.has(key)) {
+        triedKeys.add(key);
+        orderedKeys.push(key);
       }
     }
+  }
 
-    if (canQueryDatabase()) {
+  for (const key of orderedKeys) {
+    if (localFileExists(key)) {
+      return key;
+    }
+  }
+
+  for (const key of orderedKeys) {
+    if (await keyExistsOnRemoteBackend(key)) {
+      return key;
+    }
+  }
+
+  if (canQueryDatabase()) {
+    for (const candidate of candidates) {
       try {
         const book = await prisma.book.findFirst({
           where: { id: candidate, status: BookStatus.PUBLISHED },
           select: { pdfKey: true },
         });
 
-        if (isUsablePdfKey(book?.pdfKey) && !triedKeys.has(book!.pdfKey)) {
-          triedKeys.add(book!.pdfKey);
-          const fromDb = await firstExistingPdfKey([book!.pdfKey]);
-          if (fromDb) {
-            return fromDb;
-          }
+        if (!isUsablePdfKey(book?.pdfKey) || triedKeys.has(book!.pdfKey)) {
+          continue;
+        }
+
+        triedKeys.add(book!.pdfKey);
+        if (localFileExists(book!.pdfKey)) {
+          return book!.pdfKey;
+        }
+        if (await keyExistsOnRemoteBackend(book!.pdfKey)) {
+          return book!.pdfKey;
         }
       } catch (error) {
         console.error(

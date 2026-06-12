@@ -8,7 +8,8 @@ function pdfResponseHeaders(fileSize: number, extra?: Record<string, string>) {
   return {
     "Content-Type": "application/pdf",
     "Accept-Ranges": "bytes",
-    "Cache-Control": "private, max-age=300",
+    "Cache-Control": "private, no-store",
+    Vary: "Range",
     ...extra,
   };
 }

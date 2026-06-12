@@ -9,18 +9,20 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 
 ## Status at a glance
 
-| Phase | Name | Status |
-| ----- | ---- | ------ |
-| 0 | Foundation | ✅ Complete |
-| 1 | Catalog & admin upload | ✅ Complete |
-| 2 | Bookshelf & showcase | ✅ Complete |
-| 3 | Reader & progress | ✅ Complete |
-| 4 | Genres & recommendations | ✅ Complete |
-| 5 | Social core | ✅ Complete |
-| 6 | Book requests | ✅ Complete |
-| 7 | Notifications & polish | ✅ Complete (email deferred) |
-| 8 | Beta & iterate | 🔴 Not started |
-| 9 | Mobile app | ⏸ Post-traction |
+
+| Phase | Name                     | Status                      |
+| ----- | ------------------------ | --------------------------- |
+| 0     | Foundation               | ✅ Complete                  |
+| 1     | Catalog & admin upload   | ✅ Complete                  |
+| 2     | Bookshelf & showcase     | ✅ Complete                  |
+| 3     | Reader & progress        | ✅ Complete                  |
+| 4     | Genres & recommendations | ✅ Complete                  |
+| 5     | Social core              | ✅ Complete                  |
+| 6     | Book requests            | ✅ Complete                  |
+| 7     | Notifications & polish   | ✅ Complete (email deferred) |
+| 8     | Beta & iterate           | 🔴 Not started              |
+| 9     | Mobile app               | ⏸ Post-traction             |
+
 
 ---
 
@@ -100,16 +102,18 @@ Actionable next steps by phase. For vision, data model, and stack rationale see 
 
 Code shipped; production may still need manual steps.
 
-| Item | Code | Production action |
-| ---- | ---- | ----------------- |
-| Slug book ids + PDF blob verification | ✅ | Redeploy latest |
-| Ascended legacy path + `pdf.ts` fallbacks | ✅ | Redeploy latest |
-| `scripts/fix-ascended-admin-upload.sql` | ✅ | Run in Neon if duplicate Ascended rows |
-| `scripts/migrate-ascended-book-id.sql` | ✅ | Run if old `&` book id still in DB |
-| Large PDF workflow (`db:upload-files`) | ✅ documented in README | Use for files > ~4 MB on Vercel |
-| Migrations (progress, showcase, onboarding, social) | ✅ in repo | `prisma migrate deploy` on Neon |
-| Vercel env vars | — | Confirm `DATABASE_URL`, `AUTH_SECRET`, `BLOB_*`, `ADMIN_EMAILS` |
-| PDF access policy | — | Decide: any logged-in user vs shelf-only (today: any logged-in user) |
+
+| Item                                                | Code                   | Production action                                                    |
+| --------------------------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| Slug book ids + PDF blob verification               | ✅                      | Redeploy latest                                                      |
+| Ascended legacy path + `pdf.ts` fallbacks           | ✅                      | Redeploy latest                                                      |
+| `scripts/fix-ascended-admin-upload.sql`             | ✅                      | Run in Neon if duplicate Ascended rows                               |
+| `scripts/migrate-ascended-book-id.sql`              | ✅                      | Run if old `&` book id still in DB                                   |
+| Large PDF workflow (`db:upload-files`)              | ✅ documented in README | Use for files > ~4 MB on Vercel                                      |
+| Migrations (progress, showcase, onboarding, social) | ✅ in repo              | `prisma migrate deploy` on Neon                                      |
+| Vercel env vars                                     | —                      | Confirm `DATABASE_URL`, `AUTH_SECRET`, `BLOB_`*, `ADMIN_EMAILS`      |
+| PDF access policy                                   | —                      | Decide: any logged-in user vs shelf-only (today: any logged-in user) |
+
 
 ---
 
@@ -269,34 +273,41 @@ Phase 9 (mobile)
 
 ## Quick reference: placeholder pages to replace
 
-| Route | File | Target phase |
-| ----- | ---- | ------------ |
-| `/requests` | `src/app/(app)/requests/page.tsx` | 6 |
+
+| Route       | File                              | Target phase |
+| ----------- | --------------------------------- | ------------ |
+| `/requests` | `src/app/(app)/requests/page.tsx` | 6            |
+
 
 ---
 
 ## Verification commands
 
-| Command | Phase |
-| ------- | ----- |
-| `npm run verify:phase1` | Catalog + storage + admin |
-| `npm run verify:phase3` | Reader + progress + PDF delivery |
-| `npm run verify:phase4` | Settings + recommendations engine |
-| `npm run verify:phase5` | Social graph + feed + profiles |
-| `npm run test:recommendations` | Unit tests for genre scoring |
-| `GET /api/health/phase1` | Deployed Phase 1 JSON report |
-| `GET /api/health/phase3` | Deployed Phase 3 JSON report |
-| `GET /api/health/phase4` | Deployed Phase 4 JSON report |
-| `GET /api/health/phase5` | Deployed Phase 5 JSON report |
+
+| Command                        | Phase                             |
+| ------------------------------ | --------------------------------- |
+| `npm run verify:phase1`        | Catalog + storage + admin         |
+| `npm run verify:phase3`        | Reader + progress + PDF delivery  |
+| `npm run verify:phase4`        | Settings + recommendations engine |
+| `npm run verify:phase5`        | Social graph + feed + profiles    |
+| `npm run test:recommendations` | Unit tests for genre scoring      |
+| `GET /api/health/phase1`       | Deployed Phase 1 JSON report      |
+| `GET /api/health/phase3`       | Deployed Phase 3 JSON report      |
+| `GET /api/health/phase4`       | Deployed Phase 4 JSON report      |
+| `GET /api/health/phase5`       | Deployed Phase 5 JSON report      |
+
 
 ---
 
 ## Document history
 
-| Date | Change |
-| ---- | ------ |
-| 2026-06-10 | Initial roadmap.md — phased next steps from codebase audit |
+
+| Date       | Change                                                                                |
+| ---------- | ------------------------------------------------------------------------------------- |
+| 2026-06-10 | Initial roadmap.md — phased next steps from codebase audit                            |
 | 2026-06-10 | Phase 3 marked complete; added Phases 0–3 shipped summary, ops table, verify commands |
 | 2026-06-10 | Phase 4 complete — settings, recommendations engine, Discover page, dashboard widgets |
-| 2026-06-10 | Phase 4 hardening — genre matching fixes, verify:phase4, test:recommendations |
-| 2026-06-10 | Phase 5 complete — social core, settings avatar/username, verify:phase5 |
+| 2026-06-10 | Phase 4 hardening — genre matching fixes, verify:phase4, test:recommendations         |
+| 2026-06-10 | Phase 5 complete — social core, settings avatar/username, verify:phase5               |
+
+

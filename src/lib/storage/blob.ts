@@ -154,7 +154,8 @@ export async function streamBlobForRequest(
         headers["Content-Type"] = "application/pdf";
       }
       headers["Accept-Ranges"] = "bytes";
-      headers["Cache-Control"] = "private, max-age=300";
+      headers["Cache-Control"] = "private, no-store";
+      headers.Vary = "Range";
 
       return new Response(result.stream, {
         status: result.statusCode,

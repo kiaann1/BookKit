@@ -335,18 +335,24 @@ export function PdfReader({
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const probe = await fetch(pdfUrl, {
+        const pdfOptions = {
+          ...getPdfJsDocumentOptions(pdfjs.version),
+          disableRange: true,
+          disableStream: true,
+        };
+
+        const response = await fetch(pdfUrl, {
           credentials: "include",
-          headers: { Range: "bytes=0-4" },
+          cache: "no-store",
         });
-        if (!probe.ok) {
-          if (probe.status === 401) {
+        if (!response.ok) {
+          if (response.status === 401) {
             throw new Error("unauthorized");
           }
-          if (probe.status === 404) {
+          if (response.status === 404) {
             let detail = "missing";
             try {
-              const body = (await probe.json()) as { error?: string };
+              const body = (await response.json()) as { error?: string };
               if (body.error === "pdf_not_in_storage") {
                 detail = "storage";
               }
@@ -355,71 +361,27 @@ export function PdfReader({
             }
             throw new Error(detail);
           }
-          throw new Error(`PDF fetch failed (${probe.status})`);
+          throw new Error(`PDF fetch failed (${response.status})`);
         }
 
-        const probeBytes = new Uint8Array(await probe.arrayBuffer());
-        if (
-          probeBytes.byteLength > 0 &&
-          !isValidPdfHeader(probeBytes)
-        ) {
+        const data = await response.arrayBuffer();
+        if (data.byteLength < 5) {
           throw new Error("storage");
         }
-
-        const pdfOptions = {
-          ...getPdfJsDocumentOptions(pdfjs.version),
-          disableRange: false,
-          disableStream: false,
-        };
+        if (!isValidPdfHeader(new Uint8Array(data, 0, 5))) {
+          throw new Error("storage");
+        }
 
         let doc: import("pdfjs-dist").PDFDocumentProxy;
         try {
           doc = await pdfjs.getDocument({
-            url: pdfUrl,
-            withCredentials: true,
+            data,
             ...pdfOptions,
           }).promise;
-        } catch (urlError) {
-          const response = await fetch(pdfUrl, { credentials: "include" });
-          if (!response.ok) {
-            if (response.status === 401) {
-              throw new Error("unauthorized");
-            }
-            if (response.status === 404) {
-              let detail = "missing";
-              try {
-                const body = (await response.json()) as { error?: string };
-                if (body.error === "pdf_not_in_storage") {
-                  detail = "storage";
-                }
-              } catch {
-                // Empty or non-JSON 404 body.
-              }
-              throw new Error(detail);
-            }
-            throw new Error(`PDF fetch failed (${response.status})`);
-          }
-
-          const data = await response.arrayBuffer();
-          if (data.byteLength < 5) {
-            throw new Error("storage");
-          }
-          if (!isValidPdfHeader(new Uint8Array(data, 0, 5))) {
-            throw new Error("storage");
-          }
-
-          try {
-            doc = await pdfjs.getDocument({
-              data,
-              ...pdfOptions,
-              disableRange: true,
-              disableStream: true,
-            }).promise;
-          } catch {
-            const hint =
-              urlError instanceof Error ? urlError.message : "Unknown error";
-            throw new Error(`PDF open failed: ${hint}`);
-          }
+        } catch (parseError) {
+          const hint =
+            parseError instanceof Error ? parseError.message : "Invalid PDF";
+          throw new Error(`PDF open failed: ${hint}`);
         }
 
         if (cancelled) {
